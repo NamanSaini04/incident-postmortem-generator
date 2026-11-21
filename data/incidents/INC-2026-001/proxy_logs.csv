@@ -1,0 +1,3 @@
+timestamp,user,src_host,method,url,status,category
+2026-10-06T09:18:40Z,j.patel,LT-OPS-114,GET,https://login-micros0ft.test/reset?u=jpatel,200,uncategorized
+2026-10-06T09:19:02Z,j.patel,LT-OPS-114,POST,https://login-micros0ft.test/submit,302,uncategorized

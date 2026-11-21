@@ -1,0 +1,12 @@
+{
+  "export": "Cloud audit log export (synthetic)",
+  "Records": [
+    {"eventTime": "2026-09-14T16:02:11Z", "eventName": "DeletePublicAccessBlock", "userIdentity": {"userName": "d.reyes"},
+     "sourceIPAddress": "198.51.100.7", "requestParameters": {"bucketName": "acme-crm-exports"}},
+    {"eventTime": "2026-09-14T16:02:48Z", "eventName": "PutBucketPolicy", "userIdentity": {"userName": "d.reyes"},
+     "sourceIPAddress": "198.51.100.7",
+     "requestParameters": {"bucketName": "acme-crm-exports", "policy": "{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\",\"s3:ListBucket\"]}"}},
+    {"eventTime": "2026-09-18T10:55:30Z", "eventName": "PutPublicAccessBlock", "userIdentity": {"userName": "cloud.secops"},
+     "sourceIPAddress": "198.51.100.7", "requestParameters": {"bucketName": "acme-crm-exports"}}
+  ]
+}

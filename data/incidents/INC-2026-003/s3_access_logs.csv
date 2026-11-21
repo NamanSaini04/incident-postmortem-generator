@@ -1,0 +1,6 @@
+timestamp,bucket,requester,remote_ip,operation,key,http_status,bytes_sent,user_agent
+2026-09-15T10:04:12Z,acme-crm-exports,arn:aws:iam::111122223333:user/vendor-test,192.0.2.44,REST.GET.OBJECT,sample_10rows.csv,200,1820,aws-cli/2.15
+2026-09-17T03:11:05Z,acme-crm-exports,-,198.51.100.23,REST.GET.BUCKET,-,200,5120,curl/8.4.0
+2026-09-17T03:12:40Z,acme-crm-exports,-,198.51.100.23,REST.GET.OBJECT,customers_2026Q3.csv,200,48211934,curl/8.4.0
+2026-09-17T03:14:02Z,acme-crm-exports,-,198.51.100.23,REST.GET.OBJECT,customers_2026Q2.csv,200,46988102,curl/8.4.0
+2026-09-18T11:02:19Z,acme-crm-exports,-,198.51.100.23,REST.GET.BUCKET,-,403,243,curl/8.4.0

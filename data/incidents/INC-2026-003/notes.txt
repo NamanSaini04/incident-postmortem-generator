@@ -1,0 +1,9 @@
+INC-2026-003 investigation notes (synthetic data for testing)
+Context: d.reyes made acme-crm-exports public on 14 Sep to let a vendor test an integration. No change ticket was raised.
+2026-09-18 10:30 Email from an external security researcher reporting the bucket was publicly listable.
+2026-09-18 10:55 cloud.secops re-enabled the public access block on the bucket.
+Exposed objects: customers_2026Q3.csv and customers_2026Q2.csv, about 41,200 customer records (names, emails, phone numbers). No payment data.
+Finding: there is no account-level public access block and no policy guardrail preventing public buckets.
+Finding: no alert exists for bucket policy changes that grant access to everyone. Detection came from an outside party after 4 days.
+Open question: unclear whether 198.51.100.23 is the researcher who reported the issue. Not confirmed.
+Legal and privacy team informed 2026-09-18 12:00 to assess notification duties.

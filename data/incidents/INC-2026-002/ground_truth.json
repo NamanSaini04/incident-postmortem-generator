@@ -1,0 +1,59 @@
+{
+  "incident_id": "INC-2026-002",
+  "title": "Macro-enabled invoice leading to PowerShell download and C2 beaconing",
+  "category": "malware",
+  "severity": "SEV2",
+  "timeline": [
+    {"key": "doc_opened", "timestamp": "2026-10-21T08:47:10Z", "description": "Invoice_Oct.docm opened in Word", "status": "confirmed",
+     "source": {"file": "edr_events.json", "locator": "events[0]", "excerpt": "Invoice_Oct.docm"}},
+    {"key": "powershell_spawned", "timestamp": "2026-10-21T08:47:32Z", "description": "Word spawned hidden encoded PowerShell; EDR alert raised but not blocked", "status": "confirmed",
+     "source": {"file": "edr_events.json", "locator": "events[1]", "excerpt": "EDR-3301"}},
+    {"key": "stage2_downloaded", "timestamp": "2026-10-21T08:47:35Z", "description": "PowerShell downloaded s2.ps1", "status": "confirmed",
+     "source": {"file": "proxy_logs.csv", "locator": "row 1", "excerpt": "s2.ps1"}},
+    {"key": "dll_dropped", "timestamp": "2026-10-21T08:48:02Z", "description": "upd.dll written to AppData", "status": "confirmed",
+     "source": {"file": "edr_events.json", "locator": "events[3]", "excerpt": "upd.dll"}},
+    {"key": "dll_executed", "timestamp": "2026-10-21T08:48:10Z", "description": "rundll32 executed upd.dll", "status": "confirmed",
+     "source": {"file": "edr_events.json", "locator": "events[4]", "excerpt": "rundll32.exe"}},
+    {"key": "beacon_started", "timestamp": "2026-10-21T08:49:00Z", "description": "Periodic HTTPS beacon to 203.0.113.80 began", "status": "confirmed",
+     "source": {"file": "proxy_logs.csv", "locator": "row 2", "excerpt": "/api/c"}},
+    {"key": "triage_started", "timestamp": "2026-10-21T11:15:00Z", "description": "Analyst picked up EDR alert", "status": "confirmed",
+     "source": {"file": "ticket.txt", "locator": "line 3", "excerpt": "11:15 EDR-3301 picked up"}},
+    {"key": "host_isolated", "timestamp": "2026-10-21T11:22:04Z", "description": "Host isolated", "status": "confirmed",
+     "source": {"file": "edr_events.json", "locator": "events[5]", "excerpt": "host_isolated"}},
+    {"key": "iocs_blocked", "timestamp": "2026-10-21T11:40:00Z", "description": "Hashes and domain blocked", "status": "confirmed",
+     "source": {"file": "ticket.txt", "locator": "line 5", "excerpt": "Blocked both file hashes"}}
+  ],
+  "iocs": {
+    "ip": ["203.0.113.80"],
+    "domain": ["cdn-update.badcdn.test"],
+    "url": ["http://cdn-update.badcdn.test/s2.ps1", "https://cdn-update.badcdn.test/api/c"],
+    "sha256": ["03d4e4ac1e7906c11788372f9a48a2a1b37a8c3a93b19f2a0d79c3a02ac4745c",
+               "deb8fb893310bbdb9ae77981d7ff5659e376d094078d88a791777e4faeda45a4"]
+  },
+  "attack": [
+    {"technique_id": "T1204.002", "technique_name": "User Execution: Malicious File"},
+    {"technique_id": "T1059.001", "technique_name": "Command and Scripting Interpreter: PowerShell"},
+    {"technique_id": "T1105", "technique_name": "Ingress Tool Transfer"},
+    {"technique_id": "T1218.011", "technique_name": "System Binary Proxy Execution: Rundll32"},
+    {"technique_id": "T1071.001", "technique_name": "Application Layer Protocol: Web Protocols"}
+  ],
+  "root_cause": {
+    "statement": "The Finance OU was excluded from the policy that blocks macros in internet-sourced files, so the macro ran.",
+    "certainty": "confirmed",
+    "evidence": [{"file": "ticket.txt", "locator": "line 7", "excerpt": "excluded from the policy that blocks macros"}]
+  },
+  "contributing_factors": [
+    {"statement": "EDR on Finance workstations was detect-only, so the PowerShell launch was alerted but not blocked.", "certainty": "confirmed",
+     "evidence": [{"file": "ticket.txt", "locator": "line 8", "excerpt": "detect-only"}]},
+    {"statement": "A high-severity EDR alert waited about 2.5 hours in the queue because of analyst backlog.", "certainty": "confirmed",
+     "evidence": [{"file": "ticket.txt", "locator": "line 3", "excerpt": "backlog of 40 alerts"}]},
+    {"statement": "The email gateway does not sandbox .docm attachments.", "certainty": "confirmed",
+     "evidence": [{"file": "ticket.txt", "locator": "line 9", "excerpt": "does not sandbox .docm"}]}
+  ],
+  "must_not_claim": [
+    "Lateral movement occurred",
+    "Data was exfiltrated",
+    "This was a ransomware incident",
+    "The phishing email was delivered at a specific time"
+  ]
+}

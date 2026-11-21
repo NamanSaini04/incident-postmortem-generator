@@ -1,0 +1,11 @@
+Ticket INC-2026-002 (synthetic data for testing)
+Reporter: SOC queue
+11:15 EDR-3301 picked up by soc.analyst2. Alert had been in the queue since 08:47; two analysts on shift, backlog of 40 alerts.
+11:22 Isolated WS-FIN-022 from the network via EDR console.
+11:40 Blocked both file hashes and cdn-update.badcdn.test at EDR and proxy.
+Next day 09:30 WS-FIN-022 reimaged and returned to m.okafor.
+Finding: the Finance OU is excluded from the policy that blocks macros in files from the internet. Exclusion added in 2024 for a legacy Excel add-in.
+Finding: EDR policy on Finance workstations is detect-only, so the PowerShell launch was not blocked.
+Finding: the email gateway does not sandbox .docm attachments.
+Scope check: EDR shows no connections from WS-FIN-022 to other internal hosts in the last 24h. Domain controller logs not reviewed yet.
+User says the attachment looked like a real supplier invoice.

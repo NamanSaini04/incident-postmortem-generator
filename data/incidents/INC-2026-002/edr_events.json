@@ -1,0 +1,21 @@
+{
+  "export": "EDR telemetry export (synthetic)",
+  "host": "WS-FIN-022",
+  "policy_mode": "detect_only",
+  "events": [
+    {"time": "2026-10-21T08:47:10Z", "user": "m.okafor", "event": "file_open", "process": "WINWORD.EXE",
+     "file": "C:\\Users\\m.okafor\\Downloads\\Invoice_Oct.docm",
+     "sha256": "03d4e4ac1e7906c11788372f9a48a2a1b37a8c3a93b19f2a0d79c3a02ac4745c", "motw": "internet"},
+    {"time": "2026-10-21T08:47:32Z", "user": "m.okafor", "event": "process_create", "parent": "WINWORD.EXE",
+     "process": "powershell.exe", "cmdline": "powershell.exe -nop -w hidden -enc <redacted>",
+     "alert": {"id": "EDR-3301", "rule": "Office application spawned PowerShell", "severity": "high", "action": "detected"}},
+    {"time": "2026-10-21T08:47:35Z", "user": "m.okafor", "event": "network_connect", "process": "powershell.exe",
+     "dest": "http://cdn-update.badcdn.test/s2.ps1"},
+    {"time": "2026-10-21T08:48:02Z", "user": "m.okafor", "event": "file_write", "process": "powershell.exe",
+     "file": "C:\\Users\\m.okafor\\AppData\\Roaming\\upd.dll",
+     "sha256": "deb8fb893310bbdb9ae77981d7ff5659e376d094078d88a791777e4faeda45a4"},
+    {"time": "2026-10-21T08:48:10Z", "user": "m.okafor", "event": "process_create", "parent": "powershell.exe",
+     "process": "rundll32.exe", "cmdline": "rundll32.exe C:\\Users\\m.okafor\\AppData\\Roaming\\upd.dll,Start"},
+    {"time": "2026-10-21T11:22:04Z", "user": "soc.analyst2", "event": "host_isolated", "process": "edr-console"}
+  ]
+}

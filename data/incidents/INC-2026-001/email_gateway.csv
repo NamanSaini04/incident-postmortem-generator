@@ -1,0 +1,4 @@
+timestamp,message_id,sender,recipient,subject,url,verdict,action
+2026-10-06T09:14:02Z,MSG-88121,it-support@micros0ft-helpdesk.test,j.patel@contoso.example,Action required: password expires today,https://login-micros0ft.test/reset?u=jpatel,clean,delivered
+2026-10-06T09:14:05Z,MSG-88122,it-support@micros0ft-helpdesk.test,a.khan@contoso.example,Action required: password expires today,https://login-micros0ft.test/reset?u=akhan,clean,delivered
+2026-10-06T09:20:11Z,MSG-88130,newsletter@vendor.example,j.patel@contoso.example,October product update,https://vendor.example/news,clean,delivered

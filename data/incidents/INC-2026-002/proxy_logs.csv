@@ -1,0 +1,5 @@
+timestamp,src_host,process,dest_ip,dest_host,url,bytes_out,bytes_in,status
+2026-10-21T08:47:35Z,WS-FIN-022,powershell.exe,203.0.113.80,cdn-update.badcdn.test,http://cdn-update.badcdn.test/s2.ps1,412,18233,200
+2026-10-21T08:49:00Z,WS-FIN-022,rundll32.exe,203.0.113.80,cdn-update.badcdn.test,https://cdn-update.badcdn.test/api/c,388,96,200
+2026-10-21T08:50:00Z,WS-FIN-022,rundll32.exe,203.0.113.80,cdn-update.badcdn.test,https://cdn-update.badcdn.test/api/c,391,96,200
+2026-10-21T11:21:00Z,WS-FIN-022,rundll32.exe,203.0.113.80,cdn-update.badcdn.test,https://cdn-update.badcdn.test/api/c,390,96,200

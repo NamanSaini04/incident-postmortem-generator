@@ -1,0 +1,5 @@
+timestamp,user,src_ip,country,app,result,mfa_required,user_agent
+2026-10-06T08:55:31Z,j.patel,198.51.100.7,GB,Exchange Online,success,false,Mozilla/5.0 (Windows NT 10.0) Edge/129
+2026-10-06T09:22:15Z,j.patel,203.0.113.45,NL,Exchange Online,success,false,python-requests/2.31
+2026-10-06T09:23:02Z,j.patel,203.0.113.45,NL,OfficeHome,success,false,python-requests/2.31
+2026-10-06T10:01:44Z,j.patel,203.0.113.45,NL,Exchange Online,failure,false,python-requests/2.31

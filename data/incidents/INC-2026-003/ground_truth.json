@@ -1,0 +1,48 @@
+{
+  "incident_id": "INC-2026-003",
+  "title": "Customer data exposed through a publicly readable storage bucket",
+  "category": "data_exposure",
+  "severity": "SEV1",
+  "timeline": [
+    {"key": "public_block_removed", "timestamp": "2026-09-14T16:02:11Z", "description": "Public access block removed from acme-crm-exports", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[0]", "excerpt": "DeletePublicAccessBlock"}},
+    {"key": "public_policy_applied", "timestamp": "2026-09-14T16:02:48Z", "description": "Bucket policy granting read and list to everyone applied", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[1]", "excerpt": "PutBucketPolicy"}},
+    {"key": "unknown_listing", "timestamp": "2026-09-17T03:11:05Z", "description": "Anonymous listing of bucket from 198.51.100.23", "status": "confirmed",
+     "source": {"file": "s3_access_logs.csv", "locator": "row 2", "excerpt": "REST.GET.BUCKET"}},
+    {"key": "q3_downloaded", "timestamp": "2026-09-17T03:12:40Z", "description": "customers_2026Q3.csv downloaded anonymously", "status": "confirmed",
+     "source": {"file": "s3_access_logs.csv", "locator": "row 3", "excerpt": "customers_2026Q3.csv"}},
+    {"key": "q2_downloaded", "timestamp": "2026-09-17T03:14:02Z", "description": "customers_2026Q2.csv downloaded anonymously", "status": "confirmed",
+     "source": {"file": "s3_access_logs.csv", "locator": "row 4", "excerpt": "customers_2026Q2.csv"}},
+    {"key": "external_report", "timestamp": "2026-09-18T10:30:00Z", "description": "External researcher reported exposure", "status": "confirmed",
+     "source": {"file": "notes.txt", "locator": "line 3", "excerpt": "external security researcher"}},
+    {"key": "bucket_secured", "timestamp": "2026-09-18T10:55:30Z", "description": "Public access block re-enabled", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[2]", "excerpt": "PutPublicAccessBlock"}},
+    {"key": "legal_informed", "timestamp": "2026-09-18T12:00:00Z", "description": "Legal and privacy informed", "status": "confirmed",
+     "source": {"file": "notes.txt", "locator": "line 9", "excerpt": "Legal and privacy team informed"}}
+  ],
+  "iocs": {
+    "ip": ["198.51.100.23"],
+    "cloud_resource": ["acme-crm-exports"]
+  },
+  "attack": [
+    {"technique_id": "T1530", "technique_name": "Data from Cloud Storage"}
+  ],
+  "root_cause": {
+    "statement": "No account-level guardrail prevented public buckets, so one engineer could make a customer-data bucket public without review.",
+    "certainty": "confirmed",
+    "evidence": [{"file": "notes.txt", "locator": "line 6", "excerpt": "no account-level public access block"}]
+  },
+  "contributing_factors": [
+    {"statement": "The change was made without a change ticket.", "certainty": "confirmed",
+     "evidence": [{"file": "notes.txt", "locator": "line 2", "excerpt": "No change ticket was raised"}]},
+    {"statement": "No alert fires on bucket policies that grant access to everyone; detection took 4 days and came from outside.", "certainty": "confirmed",
+     "evidence": [{"file": "notes.txt", "locator": "line 7", "excerpt": "no alert exists"}]}
+  ],
+  "must_not_claim": [
+    "198.51.100.23 belongs to the security researcher",
+    "198.51.100.23 is a known malicious actor",
+    "Payment card data was exposed",
+    "The exposed data was used for fraud"
+  ]
+}

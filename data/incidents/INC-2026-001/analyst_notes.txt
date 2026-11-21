@@ -1,0 +1,11 @@
+INC-2026-001 analyst notes (synthetic data for testing)
+Analyst: SOC L1 on shift
+09:52 Picked up AL-5527 from the queue. AL-5521 had not been triaged yet.
+09:58 Revoked all active sessions for j.patel.
+10:05 Reset password for j.patel and confirmed with user by phone.
+10:12 Removed inbox rule 'sync'. Message trace shows 3 emails forwarded to mailbox-sync@exfil-drop.test before removal.
+10:40 Purged phishing message from 14 mailboxes. a.khan received it but proxy shows no click.
+Finding: MFA was not enforced for j.patel. Account was excluded from the conditional access policy during the 2025 migration and the exception was never removed.
+Finding: the email gateway rated the phishing message clean; the look-alike domain was registered 2 days earlier.
+Open question: attacker may also have accessed SharePoint. Not checked yet.
+Note: 198.51.100.7 is our London VPN egress. Benign.

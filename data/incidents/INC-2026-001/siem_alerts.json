@@ -1,0 +1,21 @@
+{
+  "export": "SIEM alert export (synthetic)",
+  "alerts": [
+    {
+      "alert_id": "AL-5521",
+      "time": "2026-10-06T09:24:00Z",
+      "rule": "Impossible travel",
+      "severity": "medium",
+      "user": "j.patel",
+      "details": "Sign-in from NL (203.0.113.45) 27 minutes after sign-in from GB (198.51.100.7)"
+    },
+    {
+      "alert_id": "AL-5527",
+      "time": "2026-10-06T09:31:10Z",
+      "rule": "New inbox forwarding rule to external address",
+      "severity": "high",
+      "user": "j.patel",
+      "details": "Rule 'sync' forwards messages containing 'invoice' to mailbox-sync@exfil-drop.test; created from 203.0.113.45"
+    }
+  ]
+}
