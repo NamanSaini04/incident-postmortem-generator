@@ -49,6 +49,12 @@ class EventStatus(str, Enum):
     UNKNOWN = "unknown"      # suspected but no supporting evidence
 
 
+class TimeBasis(str, Enum):
+    EXACT = "exact"                        # full timestamp with timezone in the evidence
+    TIMEZONE_ASSUMED = "timezone_assumed"  # date+time in evidence, timezone assumed UTC
+    DATE_INFERRED = "date_inferred"        # only HH:MM in evidence; date taken from other evidence
+
+
 class Certainty(str, Enum):
     CONFIRMED = "confirmed"
     PROBABLE = "probable"
@@ -151,7 +157,9 @@ def _require_aware(ts: datetime) -> datetime:
 
 
 class TimelineEvent(BaseModel):
+    event_id: str = ""
     timestamp: datetime | None
+    time_basis: TimeBasis = TimeBasis.EXACT
     description: str = Field(min_length=3)
     status: EventStatus
     confidence: float = Field(ge=0.0, le=1.0)
@@ -175,6 +183,19 @@ class TimelineEvent(BaseModel):
         if self.status is EventStatus.UNKNOWN and self.confidence > 0.5:
             raise ValueError("unknown event cannot have confidence above 0.5")
         return self
+
+
+class UndatedNote(BaseModel):
+    text: str
+    source: EvidenceRef
+    reason: str
+
+
+class Timeline(BaseModel):
+    incident_id: str
+    events: list[TimelineEvent]
+    undated: list[UndatedNote] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class Classification(BaseModel):

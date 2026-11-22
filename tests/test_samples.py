@@ -76,3 +76,25 @@ def test_evidence_json_files_are_valid():
         for p in evidence_files(inc):
             if p.suffix == ".json":
                 json.loads(p.read_text(encoding="utf-8"))
+
+
+# --- locating the data folder (regression: plain pip install put code in site-packages) ---
+
+def test_env_var_wins(tmp_path, monkeypatch):
+    from pmgen.samples import find_data_dir
+    monkeypatch.setenv("PMGEN_DATA_DIR", str(tmp_path))
+    assert find_data_dir() == tmp_path.resolve()
+
+
+def test_found_from_current_folder(tmp_path, monkeypatch):
+    from pmgen.samples import find_data_dir
+    (tmp_path / "data" / "incidents").mkdir(parents=True)
+    monkeypatch.delenv("PMGEN_DATA_DIR", raising=False)
+    monkeypatch.chdir(tmp_path)
+    assert find_data_dir() == tmp_path / "data" / "incidents"
+
+
+def test_missing_data_gives_clear_error(tmp_path):
+    from pmgen.samples import list_incidents
+    with pytest.raises(FileNotFoundError, match="PMGEN_DATA_DIR"):
+        list_incidents(tmp_path / "nope")

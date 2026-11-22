@@ -40,11 +40,11 @@ flowchart TD
 | `samples.py` — load synthetic incidents and ground truth | 1 | Done |
 | `ingest.py` — read TXT/CSV/JSON, hash, split into citable records | 2 | Done (PDF/DOCX deferred) |
 | `extract.py` — regex, field mapping, cross-source user/host linking | 3 | Done |
-| `timeline.py` | 4 | Next |
-| `llm/` — provider wrapper, prompts, structured output | 5 | |
+| `timeline.py` — order, date-fill, merge duplicates | 4 | Done |
+| `llm/` — provider wrapper, prompts, structured output | 5 | Next |
 | `validate.py` — claim vs evidence checks | 5 (basic), 9 (full) | |
 | `report/` — Markdown, then PDF | 5, 11 | |
-| `eval/` | 12 (basic version from Phase 4) | |
+| `evaluate.py` + `variants.py` — timeline scoring on clean and messy data | 4 (basic), 12 (full) | Basic done |
 
 ## Extraction (Phase 3): observables, not IOCs
 
@@ -76,6 +76,49 @@ Known limits:
 - The TLD list is short; swap in the public suffix list for real data.
 - Relative times ("Next day 09:30") are not extracted.
 - Users who appear only as email recipients (`a.khan`) aren't linked as users.
+
+## Timeline (Phase 4)
+
+- One event per evidence record that has a timestamp.
+- **Time-only notes** (`09:52 Revoked sessions`) take their date from the other
+  evidence. If the evidence covers one day: confidence 0.8. If it covers
+  several days: the latest day is used, confidence drops to 0.4, and a
+  warning is raised.
+- **No timezone:** assumed UTC and recorded as `time_basis = timezone_assumed`.
+- **Duplicates across logs** (EDR + proxy for the same connection) are merged
+  into one event with both sources, only if they are within 2 seconds, share
+  an IP/URL/domain/hash/email, and don't name different users (or different
+  hosts). A user in one log and a host in the other is not a conflict.
+- Descriptions are mechanical (`rule=Impossible travel; user=j.patel`).
+  Readable wording is Phase 5's job.
+
+Known limits:
+- "Next day 09:30" (relative dates) is not handled.
+- A note and a log line describing the same action at slightly different
+  times (`11:22` in the ticket, `11:22:04` in EDR) stay as two events.
+
+## Evaluation (Phase 4, basic)
+
+`python -m pmgen.evaluate` scores timelines against ground truth on the 3
+incidents and 5 messy variants of each (18 cases):
+
+| Variant | What it adds |
+|---|---|
+| shuffled | CSV rows in random order (ground truth row numbers rewritten) |
+| noisy | 3 benign rows per CSV |
+| offset_tz | one log source in +05:30 instead of UTC |
+| dup_alert | an alert duplicated in the JSON export |
+| combined | all of the above |
+
+Current result: 100% key-event recall, timestamp accuracy and order accuracy
+on all 18 cases; average 1.6 timeline events per key event.
+
+**How to read that number:** these metrics check that the deterministic
+pipeline orders and times events correctly. They are close to a unit test, not
+a benchmark. Matching uses the source record, so recall means "every key
+record became an event", not "the system knew which events mattered". That
+harder question (and the LLM's accuracy) is measured from Phase 5 onwards.
+The scorer itself is tested: sabotaging a timeline lowers all three scores.
 
 ## Safety rules enforced in code (not just in prompts)
 
