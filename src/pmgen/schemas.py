@@ -302,3 +302,98 @@ class GroundTruth(BaseModel):
         if len(keys) != len(set(keys)):
             raise ValueError("ground-truth event keys must be unique")
         return self
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: what the LLM must return (validated by code before use)
+# ---------------------------------------------------------------------------
+# These models are deliberately permissive: a draft that breaks the rules
+# must still parse, so the validator can report exactly what is wrong.
+
+
+class Citation(BaseModel):
+    record_id: str = Field(description="ID of an evidence record from the pack, e.g. R007")
+    quote: str = Field(description="Exact text copied from that record (3-200 chars) that supports the claim")
+
+
+class DraftFinding(BaseModel):
+    statement: str
+    certainty: Certainty
+    citations: list[Citation] = Field(default_factory=list)
+
+
+class DraftLesson(BaseModel):
+    area: str = Field(description="One of: people, process, technology, governance")
+    lesson: str
+    citations: list[Citation] = Field(default_factory=list)
+
+
+class DraftAction(BaseModel):
+    recommendation: str
+    priority: Priority
+    reason: str
+    citations: list[Citation] = Field(default_factory=list)
+    owner_team: str
+    timeframe: str
+    expected_benefit: str
+
+
+class DraftReport(BaseModel):
+    title: str
+    category: IncidentCategory
+    severity: Severity
+    severity_rationale: str
+    classification_confidence: float = Field(ge=0.0, le=1.0)
+    executive_summary: str
+    what_happened: list[DraftFinding]
+    key_event_ids: list[str] = Field(default_factory=list, description="Timeline event IDs (EV001...) that matter most")
+    indicators: list[str] = Field(default_factory=list, description="Malicious indicators, copied exactly from the observables list")
+    root_cause: DraftFinding
+    contributing_factors: list[DraftFinding] = Field(default_factory=list)
+    detection_gaps: list[DraftFinding] = Field(default_factory=list)
+    lessons: list[DraftLesson] = Field(default_factory=list)
+    corrective_actions: list[DraftAction] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    remaining_risks: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: the validated postmortem (only built from claims that passed checks)
+# ---------------------------------------------------------------------------
+
+
+class Lesson(BaseModel):
+    area: str = Field(pattern=r"^(people|process|technology|governance)$")
+    lesson: str
+    evidence: list[EvidenceRef] = Field(min_length=1)
+
+
+class Indicator(BaseModel):
+    value: str
+    entity_type: EntityType
+    first_seen: EvidenceRef
+
+
+class Postmortem(BaseModel):
+    incident_id: str
+    title: str
+    category: IncidentCategory
+    severity: Severity
+    severity_rationale: str
+    classification_confidence: float
+    executive_summary: str
+    what_happened: list[Finding]
+    key_event_ids: list[str]
+    indicators: list[Indicator]
+    root_cause: Finding | None
+    contributing_factors: list[Finding]
+    detection_gaps: list[Finding]
+    lessons: list[Lesson]
+    corrective_actions: list[CorrectiveAction]
+    open_questions: list[str]
+    remaining_risks: list[str]
+    timeline: Timeline
+    validation_log: list[str]
+    model: str
+    generated_at: datetime
+    file_hashes: dict[str, str]

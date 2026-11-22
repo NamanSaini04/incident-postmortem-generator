@@ -41,9 +41,9 @@ flowchart TD
 | `ingest.py` — read TXT/CSV/JSON, hash, split into citable records | 2 | Done (PDF/DOCX deferred) |
 | `extract.py` — regex, field mapping, cross-source user/host linking | 3 | Done |
 | `timeline.py` — order, date-fill, merge duplicates | 4 | Done |
-| `llm/` — provider wrapper, prompts, structured output | 5 | Next |
-| `validate.py` — claim vs evidence checks | 5 (basic), 9 (full) | |
-| `report/` — Markdown, then PDF | 5, 11 | |
+| `evidence_pack.py`, `llm.py`, `postmortem.py` — LLM draft + Markdown report | 5 | Done |
+| `validate.py` — claim vs evidence checks | 5 (basic), 9 (full) | Basic done |
+| Markdown report (5), PDF (11) | 5, 11 | Markdown done |
 | `evaluate.py` + `variants.py` — timeline scoring on clean and messy data | 4 (basic), 12 (full) | Basic done |
 
 ## Extraction (Phase 3): observables, not IOCs
@@ -119,6 +119,35 @@ a benchmark. Matching uses the source record, so recall means "every key
 record became an event", not "the system knew which events mattered". That
 harder question (and the LLM's accuracy) is measured from Phase 5 onwards.
 The scorer itself is tested: sabotaging a timeline lowers all three scores.
+
+## LLM postmortem (Phase 5)
+
+The LLM sees only the evidence pack: every record numbered (R001...), the
+code-built timeline (EV001...), and the extracted observables. It never sees
+the ground truth. It returns a structured draft through a forced tool call.
+
+**Validation (code, not the LLM):**
+1. Every citation must name a real record ID.
+2. The quoted text must appear in that record. This stops invented citations.
+3. Confirmed/probable findings, lessons and corrective actions need at least one valid citation.
+4. Listed indicators must be among the extracted observables.
+5. No IP/domain/URL/email/hash may appear anywhere in the text unless it is in the evidence.
+6. Key event IDs must exist; lesson areas must be people/process/technology/governance.
+
+If anything fails, the problems are sent back once for a corrected draft.
+Anything still failing is **dropped** (claims) or **redacted** (invented
+indicators), and every removal is listed in the report's Validation log.
+Unverified indicators in the log are defanged (`198[.]51[.]100[.]250`) so they
+can't be copied into a blocklist by mistake.
+
+**Known gap:** a correctly quoted citation can still be used to support a
+claim it doesn't actually support. Checks 1-3 can't see that. It is measured
+with the hallucination-trap list (manual for now) and addressed in Phase 9.
+
+**Report score** (`evaluate.score_report`): category, severity, whether the
+root cause cites the right record, contributing-factor recall, indicator
+precision and recall, number of claims removed. Tested only with a scripted
+fake LLM so far; real-model results come from running it.
 
 ## Safety rules enforced in code (not just in prompts)
 

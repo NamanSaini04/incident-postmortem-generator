@@ -114,3 +114,48 @@ def _table(scores: list[TimelineScore]) -> str:
 
 if __name__ == "__main__":
     print(_table(run_all(include_variants="--no-variants" not in sys.argv)))
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: score a generated postmortem against ground truth
+# ---------------------------------------------------------------------------
+
+
+class ReportScore(BaseModel):
+    incident_id: str
+    category_correct: bool
+    severity_correct: bool
+    root_cause_grounded: bool      # root cause cites the same record as the ground-truth root cause
+    contributing_factor_recall: float  # share of GT contributing factors whose record is cited somewhere
+    indicator_recall: float        # share of GT IOCs listed as indicators
+    indicator_precision: float     # share of listed indicators that are GT IOCs
+    claims_removed: int            # items dropped by the validator
+    must_not_claim: list[str]      # for MANUAL check: these must not appear as confirmed facts
+
+
+def score_report(gt: GroundTruth, pm) -> ReportScore:
+    loc = lambda refs: {(r.file, r.locator) for r in refs}  # noqa: E731
+    gt_rc = loc(gt.root_cause.evidence)
+    rc = loc(pm.root_cause.evidence) if pm.root_cause else set()
+    cited = set()
+    for f in [*pm.what_happened, *pm.contributing_factors, *pm.detection_gaps]:
+        cited |= loc(f.evidence)
+    if pm.root_cause:
+        cited |= rc
+    for a in pm.corrective_actions:
+        cited |= loc(a.supporting_evidence)
+    cf = gt.contributing_factors
+    cf_hit = sum(bool(loc(f.evidence) & cited) for f in cf)
+    gt_iocs = {v.lower() for vals in gt.iocs.values() for v in vals}
+    listed = {i.value.lower() for i in pm.indicators}
+    return ReportScore(
+        incident_id=gt.incident_id,
+        category_correct=pm.category == gt.category,
+        severity_correct=pm.severity == gt.severity,
+        root_cause_grounded=bool(rc & gt_rc),
+        contributing_factor_recall=cf_hit / len(cf) if cf else 1.0,
+        indicator_recall=len(listed & gt_iocs) / len(gt_iocs) if gt_iocs else 1.0,
+        indicator_precision=len(listed & gt_iocs) / len(listed) if listed else 0.0,
+        claims_removed=sum("DROPPED" in x or "removed unverified" in x for x in pm.validation_log),
+        must_not_claim=gt.must_not_claim,
+    )

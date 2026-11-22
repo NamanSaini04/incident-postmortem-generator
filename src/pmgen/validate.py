@@ -1,0 +1,227 @@
+"""Phase 5: check every LLM claim against the evidence before it reaches a report.
+
+Checks (each produces an Issue naming exactly where the problem is):
+  1. Citation points at a record ID that exists in the evidence pack.
+  2. The quoted text really appears in that record (stops made-up citations).
+  3. Confirmed/probable findings, lessons and corrective actions cite at
+     least one valid record.
+  4. Every indicator listed as malicious was actually extracted from evidence.
+  5. No IP, domain, URL, email or hash appears anywhere in the report text
+     unless it appears in the evidence (stops invented IOCs).
+  6. Key event IDs exist in the timeline; lesson areas are valid.
+
+What it CANNOT check: whether a cited, correctly quoted record actually
+supports the claim's meaning. "MFA was enabled [quote: 'mfa_required']" passes
+checks 1-3. That gap is measured in evaluation, and later handled by a
+second-pass checker (Phase 9).
+"""
+from __future__ import annotations
+
+import re
+from datetime import datetime, timezone
+
+from pydantic import BaseModel, ValidationError
+
+from .evidence_pack import EvidencePack
+from .extract import find_indicators
+from .schemas import (
+    Certainty,
+    Citation,
+    CorrectiveAction,
+    DraftReport,
+    EvidenceRef,
+    Finding,
+    Indicator,
+    Lesson,
+    Postmortem,
+)
+
+LESSON_AREAS = {"people", "process", "technology", "governance"}
+REDACTED = "[unverified indicator removed]"
+
+
+class Issue(BaseModel):
+    where: str
+    problem: str
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", " ", s.replace("\\\\", "\\")).strip().lower()
+
+
+def check_citation(c: Citation, pack: EvidencePack) -> str | None:
+    rec = pack.records.get(c.record_id)
+    if rec is None:
+        return f"cites {c.record_id}, which does not exist"
+    if not 3 <= len(c.quote.strip()) <= 200:
+        return f"quote for {c.record_id} must be 3-200 characters"
+    if _norm(c.quote) not in _norm(rec.text):
+        return f"quote {c.quote!r} not found in {c.record_id} ({rec.file} {rec.locator})"
+    return None
+
+
+def _valid(cites: list[Citation], pack: EvidencePack) -> list[Citation]:
+    return [c for c in cites if check_citation(c, pack) is None]
+
+
+def _free_text(d: DraftReport) -> list[tuple[str, str]]:
+    out = [("title", d.title), ("executive_summary", d.executive_summary),
+           ("severity_rationale", d.severity_rationale), ("root_cause", d.root_cause.statement)]
+    for name, items in (("what_happened", d.what_happened), ("contributing_factors", d.contributing_factors),
+                        ("detection_gaps", d.detection_gaps)):
+        out += [(f"{name}[{i}]", f.statement) for i, f in enumerate(items)]
+    out += [(f"lessons[{i}]", x.lesson) for i, x in enumerate(d.lessons)]
+    for i, a in enumerate(d.corrective_actions):
+        out += [(f"corrective_actions[{i}]", f"{a.recommendation} {a.reason} {a.expected_benefit}")]
+    out += [(f"open_questions[{i}]", q) for i, q in enumerate(d.open_questions)]
+    out += [(f"remaining_risks[{i}]", r) for i, r in enumerate(d.remaining_risks)]
+    return out
+
+
+def validate_draft(d: DraftReport, pack: EvidencePack) -> list[Issue]:
+    issues: list[Issue] = []
+
+    def cites(where: str, cs: list[Citation], required: bool) -> None:
+        for c in cs:
+            err = check_citation(c, pack)
+            if err:
+                issues.append(Issue(where=where, problem=err))
+        if required and not _valid(cs, pack):
+            issues.append(Issue(where=where, problem="needs at least one valid citation"))
+
+    def finding(where: str, f) -> None:
+        cites(where, f.citations, f.certainty in (Certainty.CONFIRMED, Certainty.PROBABLE))
+
+    for i, f in enumerate(d.what_happened):
+        finding(f"what_happened[{i}]", f)
+    finding("root_cause", d.root_cause)
+    for i, f in enumerate(d.contributing_factors):
+        finding(f"contributing_factors[{i}]", f)
+    for i, f in enumerate(d.detection_gaps):
+        finding(f"detection_gaps[{i}]", f)
+    for i, x in enumerate(d.lessons):
+        cites(f"lessons[{i}]", x.citations, True)
+        if x.area.lower() not in LESSON_AREAS:
+            issues.append(Issue(where=f"lessons[{i}]", problem=f"area {x.area!r} must be one of {sorted(LESSON_AREAS)}"))
+    for i, a in enumerate(d.corrective_actions):
+        cites(f"corrective_actions[{i}]", a.citations, True)
+
+    known = pack.observables
+    for v in d.indicators:
+        if v.lower() not in known:
+            issues.append(Issue(where="indicators", problem=f"{v!r} was not extracted from the evidence"))
+    event_ids = {e.event_id for e in pack.timeline.events}
+    for e in d.key_event_ids:
+        if e not in event_ids:
+            issues.append(Issue(where="key_event_ids", problem=f"{e} is not a timeline event"))
+    for where, text in _free_text(d):
+        for t, v in sorted(find_indicators(text)):
+            if v not in known:
+                issues.append(Issue(where=where, problem=f"mentions {t.value} {v!r}, which is not in the evidence"))
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Build the final report from a draft, keeping only what passes
+# ---------------------------------------------------------------------------
+
+
+def _refs(cs: list[Citation], pack: EvidencePack) -> list[EvidenceRef]:
+    out = []
+    for c in _valid(cs, pack):
+        r = pack.records[c.record_id]
+        out.append(EvidenceRef(file=r.file, locator=r.locator, excerpt=c.quote.strip()[:500]))
+    return out
+
+
+def _redact(text: str, known: dict) -> tuple[str, list[str]]:
+    removed = []
+    for _, v in find_indicators(text):
+        if v not in known:
+            text = re.sub(re.escape(v), REDACTED, text, flags=re.IGNORECASE)
+            removed.append(v)
+    return text, removed
+
+
+def defang(value: str) -> str:
+    """Standard defanging so an unverified indicator can't be clicked or pasted into a blocklist by mistake."""
+    return value.replace("http", "hxxp").replace(".", "[.]").replace("@", "[@]")
+
+
+def defang_unknown(text: str, known: dict) -> str:
+    for _, v in sorted(find_indicators(text), key=lambda x: -len(x[1])):
+        if v not in known:
+            text = re.sub(re.escape(v), defang(v), text, flags=re.IGNORECASE)
+    return text
+
+
+def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: list[Issue]) -> Postmortem:
+    known = pack.observables
+    log = [f"{i.where}: {i.problem}" for i in issues]
+
+    def clean(text: str, where: str) -> str:
+        text, removed = _redact(text, known)
+        for v in removed:
+            log.append(f"{where}: removed unverified indicator {v!r}")
+        return text
+
+    def to_finding(f, where: str) -> Finding | None:
+        try:
+            return Finding(statement=clean(f.statement, where), certainty=f.certainty, evidence=_refs(f.citations, pack))
+        except ValidationError:
+            log.append(f"{where}: DROPPED, {f.certainty.value} claim with no valid evidence: {f.statement[:80]!r}")
+            return None
+
+    def findings(items, name):
+        return [x for i, f in enumerate(items) if (x := to_finding(f, f"{name}[{i}]")) is not None]
+
+    lessons = []
+    for i, x in enumerate(d.lessons):
+        try:
+            lessons.append(Lesson(area=x.area.lower(), lesson=clean(x.lesson, f"lessons[{i}]"),
+                                  evidence=_refs(x.citations, pack)))
+        except ValidationError:
+            log.append(f"lessons[{i}]: DROPPED, no valid evidence or bad area: {x.lesson[:80]!r}")
+
+    actions = []
+    for i, a in enumerate(d.corrective_actions):
+        try:
+            actions.append(CorrectiveAction(
+                recommendation=clean(a.recommendation, f"corrective_actions[{i}]"), priority=a.priority,
+                reason=clean(a.reason, f"corrective_actions[{i}]"), supporting_evidence=_refs(a.citations, pack),
+                owner_team=a.owner_team, timeframe=a.timeframe,
+                expected_benefit=clean(a.expected_benefit, f"corrective_actions[{i}]")))
+        except ValidationError:
+            log.append(f"corrective_actions[{i}]: DROPPED, no valid evidence: {a.recommendation[:80]!r}")
+
+    first_seen = {}
+    for e in pack.entities:
+        first_seen.setdefault(e.value.lower(), e)
+    indicators = []
+    for v in dict.fromkeys(x.lower() for x in d.indicators):
+        if v in known:
+            e = first_seen[v]
+            indicators.append(Indicator(value=e.value, entity_type=e.entity_type,
+                                        first_seen=EvidenceRef(file=e.source.file, locator=e.source.locator,
+                                                               excerpt=e.source.excerpt)))
+    event_ids = {e.event_id for e in pack.timeline.events}
+
+    return Postmortem(
+        incident_id=pack.incident_id,
+        title=clean(d.title, "title"),
+        category=d.category, severity=d.severity,
+        severity_rationale=clean(d.severity_rationale, "severity_rationale"),
+        classification_confidence=d.classification_confidence,
+        executive_summary=clean(d.executive_summary, "executive_summary"),
+        what_happened=findings(d.what_happened, "what_happened"),
+        key_event_ids=[e for e in d.key_event_ids if e in event_ids],
+        indicators=indicators,
+        root_cause=to_finding(d.root_cause, "root_cause"),
+        contributing_factors=findings(d.contributing_factors, "contributing_factors"),
+        detection_gaps=findings(d.detection_gaps, "detection_gaps"),
+        lessons=lessons, corrective_actions=actions,
+        open_questions=[clean(q, "open_questions") for q in d.open_questions],
+        remaining_risks=[clean(r, "remaining_risks") for r in d.remaining_risks],
+        timeline=pack.timeline, validation_log=[defang_unknown(x, known) for x in log], model=model,
+        generated_at=datetime.now(timezone.utc), file_hashes=pack.file_hashes,
+    )

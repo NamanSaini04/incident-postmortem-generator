@@ -4,7 +4,8 @@ Turns incident evidence (logs, alerts, analyst notes) into a structured
 postmortem where every claim cites its source. **Defensive use only.**
 Synthetic data only.
 
-**Status:** Phase 4 of 15. Evidence ingestion (TXT/CSV/JSON), deterministic
+**Status:** Phase 5 of 15. First LLM step: validated Markdown postmortem.
+Previous: Evidence ingestion (TXT/CSV/JSON), deterministic
 extraction, timeline reconstruction, and timeline evaluation on 3 synthetic
 incidents plus 15 messy variants (shuffled, noisy, mixed timezones,
 duplicate alerts).
@@ -14,13 +15,27 @@ No LLM yet. Evaluated on synthetic data only; not validated on production data.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install ".[dev]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 115 passed
+pip install ".[dev,llm]"   # re-run after pulling new code (see note below)
+pytest -q          # expect: 135 passed
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline
 python -m pmgen.evaluate                             # timeline scores, 18 cases (run from this folder)
+python -m pmgen.postmortem data/incidents/INC-2026-001 --dry-run   # LLM prompt, no API call
 ```
+
+## Running the LLM step
+
+Needs an Anthropic API key. Never put the key in a file inside this repo.
+
+```bash
+read -s ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY   # paste key, press Enter (not saved to shell history)
+python -m pmgen.postmortem data/incidents/INC-2026-001  # writes reports/INC-2026-001_postmortem.md
+```
+
+Default model: `claude-sonnet-5-5`. Override with `--model` or `PMGEN_MODEL`.
+If ground truth exists, a score is printed, plus a list of statements to
+check by hand (the hallucination traps).
 
 **macOS note:** if `pip install -e` succeeds but `import pmgen` fails, macOS
 may have marked the install's `.pth` file as hidden, and newer Python skips
@@ -35,6 +50,10 @@ src/pmgen/extract.py      Pull IPs, domains, users, timestamps etc. from records
 src/pmgen/timeline.py     Order events, fill dates, merge duplicates
 src/pmgen/evaluate.py     Score timelines against ground truth
 src/pmgen/variants.py     Messy versions of each incident
+src/pmgen/evidence_pack.py  What the LLM sees: numbered records, timeline, observables
+src/pmgen/llm.py            Anthropic client (+ fake client for tests)
+src/pmgen/validate.py       Check every LLM claim; drop or redact what fails
+src/pmgen/postmortem.py     Generate + render the Markdown postmortem
 src/pmgen/provenance.py   Resolve "file / row N" back to the source record
 src/pmgen/samples.py      Load bundled incidents
 data/incidents/INC-*/     Evidence files + ground_truth.json

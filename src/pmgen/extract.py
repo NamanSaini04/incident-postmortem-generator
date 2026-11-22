@@ -253,3 +253,14 @@ if __name__ == "__main__":
         sys.exit("usage: python -m pmgen.extract <incident_folder>")
     folder = Path(sys.argv[1])
     print(_summary(folder.name, extract_bundle(ingest_folder(folder))))
+
+
+def find_indicators(text: str) -> set[tuple[EntityType, str]]:
+    """Indicator-type values (IP/domain/URL/email/hash) mentioned in any text.
+    Used to catch an LLM mentioning an indicator that isn't in the evidence."""
+    rec = EvidenceRecord(locator="line 1", text=text)
+    c = _Collector("_", rec)
+    _regex_pass(c, text, is_structured=True)  # skip timestamps
+    keep = {EntityType.IP, EntityType.DOMAIN, EntityType.URL, EntityType.EMAIL,
+            EntityType.SHA256, EntityType.SHA1, EntityType.MD5}
+    return {(e.entity_type, e.value.lower()) for e in c.out if e.entity_type in keep}
