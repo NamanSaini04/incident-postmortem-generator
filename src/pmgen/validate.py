@@ -84,7 +84,11 @@ class Issue(BaseModel):
 
 
 def _norm(s: str) -> str:
-    return re.sub(r"\s+", " ", s.replace("\\\\", "\\")).strip().lower()
+    # Records are stored as JSON text, so a JSON string nested in a field (e.g. a bucket policy) has its quotes
+    # escaped as \" and backslashes doubled. Undo both so a quote copied from the visible value still matches
+    # (bug found in Phase 7: '"Principal":"*"' was wrongly rejected).
+    s = s.replace("\\\\", "\\").replace('\\"', '"')
+    return re.sub(r"\s+", " ", s).strip().lower()
 
 
 def check_citation(c: Citation, pack: EvidencePack) -> str | None:

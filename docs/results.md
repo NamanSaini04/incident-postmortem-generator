@@ -256,4 +256,44 @@ official catalogue.
 - Not held out: the incidents have been run before (not for ATT&CK). The
   answer key for ATT&CK was fixed before this run.
 
-Phase 7 results: _pending_.
+### Phase 7 results (2026-11-23, one run per incident, with RAG)
+
+Reports: `docs/sample_reports/phase7/`.
+
+| Incident | Strict recall | Lenient recall | Precision (scored) | Forbidden hits | Missed |
+|---|---|---|---|---|---|
+| INC-001 | 3/3 | 3/3 | 100% | 0 | - |
+| INC-002 | 5/5 | 5/5 | 100% | 0 | - |
+| INC-003 | 1/1 | 1/1 | 100% | 0 | - |
+| INC-004 | 4/5 | 4/5 | 100% | 0 | T1133 |
+| INC-005 | 1/1 | 1/1 | 100% | 0 | - |
+| INC-006 | 3/4 | 3/4 | 100% | 0 | T1496 |
+| **Mean** | **92%** | **92%** | **100% (scored)** | **0** | |
+
+No mapping was removed by the validator (every ID was a current ATT&CK
+technique). All 26 forbidden (trap) techniques were avoided, including T1566
+for INC-002 (no email evidence) and T1041/T1567 for the ransom note's
+unverified theft claim. Text traps: 23/23 again (92/92 across all runs).
+
+**Manual review of the misses and of "precision 100%"**
+- **INC-004, T1133 missed: a real model error that the answer key partly hid.**
+  The model mapped the attacker's internet RDP logon as T1021.001 Remote Desktop
+  Protocol (lateral movement), while its own rationale says "from the internet",
+  which is T1133 External Remote Services (initial access). T1021.001 was in the
+  acceptable list (intended for internal RDP), so it scored as correct.
+  **True precision is below 100%.** Lesson: an "acceptable" list cannot check
+  *why* a technique was chosen.
+- **INC-006, T1496 missed: arguable.** Four GPU instances launched with a stolen
+  key is the usual resource-hijacking pattern, but the evidence does not show
+  what they were used for, and the model listed that as an open question. Kept
+  as a miss (the answer key was fixed before the run).
+
+**Other findings**
+- **Validator bug (fixed):** INC-003's quote `"Principal":"*"` was wrongly
+  rejected because nested JSON stores its quotes escaped (`\"`). It cost one retry
+  and could have dropped a correct claim. Fixed and covered by a regression test.
+- **Certainty drift, third time:** INC-006 again labels the `iam:*` factor
+  "confirmed" (the evidence never states c.ng is in that group) and states it as
+  fact in the summary. Because the model's own label says confirmed, the hedge
+  check cannot see it. This is now the most consistent weakness.
+- Cost: 6 runs at about $0.10 each.

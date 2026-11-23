@@ -388,3 +388,14 @@ def test_earlier_attempt_problems_are_kept_in_log(pack):
     bad["root_cause"]["citations"][0]["quote"] = "invented quote"
     pm = generate(pack, FakeClient([bad, good_draft(pack)]))
     assert any(x.startswith("attempt 1 problem: root_cause:") and "invented quote" in x for x in pm.validation_log)
+
+
+def test_quote_from_nested_json_value_is_accepted():
+    """Phase 7 run: '"Principal":"*"' from a bucket policy (a JSON string inside a JSON record) was wrongly rejected."""
+    from pmgen.schemas import Citation
+    from pmgen.validate import check_citation
+    p3 = build_pack(ingest_folder(DATA_DIR / "INC-2026-003"))
+    rid = p3.by_location[("cloudtrail.json", "Records[1]")]
+    assert '\\"Principal\\"' in p3.records[rid].text          # stored escaped
+    assert check_citation(Citation(record_id=rid, quote='"Principal":"*"'), p3) is None
+    assert check_citation(Citation(record_id=rid, quote='"Principal":"admin"'), p3) is not None
