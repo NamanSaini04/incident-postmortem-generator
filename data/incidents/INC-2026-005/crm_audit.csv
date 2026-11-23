@@ -1,0 +1,4 @@
+timestamp,user,action,object,record_count,src_host
+2026-11-14T10:12:00Z,r.mehta,view,Account ACME-112,1,LT-SALES-07
+2026-11-17T16:02:11Z,r.mehta,export,Opportunities (all regions),4820,LT-SALES-07
+2026-11-17T16:05:40Z,r.mehta,export,Price book 2027,1,LT-SALES-07

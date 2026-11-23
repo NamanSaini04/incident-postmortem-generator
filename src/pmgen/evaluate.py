@@ -30,7 +30,9 @@ from pydantic import BaseModel
 from .ingest import ingest_folder
 from .samples import DATA_DIR, list_incidents, load_ground_truth
 from .schemas import GroundTruth, Timeline
-from .timeline import build_timeline
+from datetime import timedelta
+
+from .timeline import MERGE_WINDOW, build_timeline
 
 
 class TimelineScore(BaseModel):
@@ -56,7 +58,10 @@ def score_timeline(gt: GroundTruth, tl: Timeline, case: str | None = None) -> Ti
                     precise = not g.source.file.endswith(".txt")
                     a = ev.timestamp.replace(microsecond=0) if precise else ev.timestamp.replace(second=0, microsecond=0)
                     b = g.timestamp if precise else g.timestamp.replace(second=0)
-                    if a != b:
+                    # A merged event (same action seen in several logs within MERGE_WINDOW) carries
+                    # the earliest source time; any source time within the window is correct.
+                    tol = MERGE_WINDOW if len(ev.sources) > 1 else timedelta(0)
+                    if abs(a - b) > tol:
                         wrong_time.append(g.key)
 
     matched = [g.key for g in gt.timeline if g.key in position]
@@ -153,7 +158,7 @@ def score_report(gt: GroundTruth, pm) -> ReportScore:
     listed = {i.value.lower() for i in pm.indicators}
     return ReportScore(
         incident_id=gt.incident_id,
-        category_correct=pm.category == gt.category,
+        category_correct=pm.category == gt.category or pm.category in gt.acceptable_categories,
         severity_correct=pm.severity == gt.severity,
         severity_off_by=abs(int(pm.severity.value[-1]) - int(gt.severity.value[-1])),
         root_cause_grounded=bool(rc & gt_rc),

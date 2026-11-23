@@ -34,8 +34,11 @@ def good_draft(pack) -> dict:
         "category": "credential_compromise", "severity": "SEV2",
         "severity_rationale": "One account taken over; 3 emails forwarded externally.",
         "classification_confidence": 0.85,
-        "executive_summary": "A phishing email led j.patel to submit credentials; the attacker signed in from "
-                             "203.0.113.45 without MFA and created a forwarding rule.",
+        "summary_points": [
+            {"text": "The attacker signed in from 203.0.113.45.", "based_on": ["what_happened[0]"]},
+            {"text": "MFA was not enforced for the account.", "based_on": ["root_cause"]},
+            {"text": "SharePoint access may have occurred but is not confirmed.", "based_on": ["what_happened[1]"]},
+        ],
         "what_happened": [
             {"statement": "Attacker signed in from 203.0.113.45", "certainty": "confirmed",
              "citations": [c("auth_logs.csv", "row 2", "203.0.113.45")]},
@@ -82,7 +85,10 @@ def test_good_draft_passes_cleanly(pack):
     (lambda d: d["root_cause"]["citations"][0].update(quote="MFA was enabled and enforced"), "not found in"),
     (lambda d: d["what_happened"][0].update(citations=[]), "needs at least one valid citation"),
     (lambda d: d["indicators"].append("198.51.100.99"), "not extracted from the evidence"),
-    (lambda d: d.update(executive_summary="Attacker used evil-c2.example for exfiltration."), "not in the evidence"),
+    (lambda d: d["summary_points"][0].update(text="Attacker used evil-c2.example for exfiltration."), "not in the evidence"),
+    (lambda d: d["summary_points"][2].update(text="The attacker accessed SharePoint."), "states a possible finding as fact"),
+    (lambda d: d["summary_points"][0].update(based_on=[]), "not tied to any finding"),
+    (lambda d: d["summary_points"][0].update(based_on=["what_happened[9]"]), "do not exist"),
     (lambda d: d["key_event_ids"].append("EV999"), "not a timeline event"),
     (lambda d: d["lessons"][0].update(area="vibes"), "must be one of"),
     (lambda d: d["corrective_actions"][0].update(citations=[]), "needs at least one valid citation"),
@@ -124,7 +130,7 @@ def test_still_bad_after_retry_drops_claim_and_logs_it(pack):
 
 def test_invented_indicator_is_redacted_from_text(pack):
     bad = good_draft(pack)
-    bad["executive_summary"] += " Data went to 198.51.100.250."
+    bad["summary_points"][0]["text"] += " Data went to 198.51.100.250."
     pm = generate(pack, FakeClient([bad, copy.deepcopy(bad)]))
     assert "198.51.100.250" not in pm.executive_summary
     assert "[unverified indicator removed]" in pm.executive_summary
@@ -343,3 +349,34 @@ def test_severity_distance(pack):
     d["severity"] = "SEV4"
     s = score_report(load_ground_truth(INC), generate(pack, FakeClient([d])))
     assert s.severity_off_by == 2 and not s.severity_correct
+
+
+# --- Phase 5b: summary points must be tied to findings and hedge non-confirmed ones ----
+
+def test_summary_overclaim_is_dropped_and_logged(pack):
+    """The INC-002 run-1 pattern: summary states as fact what the findings only call probable/possible."""
+    bad = good_draft(pack)
+    bad["summary_points"][2]["text"] = "The attacker accessed SharePoint."
+    pm = generate(pack, FakeClient([bad, copy.deepcopy(bad)]))
+    assert "SharePoint" not in pm.executive_summary
+    assert any("summary_points[2]: DROPPED" in x and "as fact" in x for x in pm.validation_log)
+
+
+def test_hedged_summary_point_passes(pack):
+    pm = generate(pack, FakeClient([good_draft(pack)]))
+    assert "may have occurred" in pm.executive_summary
+
+
+def test_summary_point_dropped_when_its_finding_is_dropped(pack):
+    bad = good_draft(pack)
+    bad["root_cause"]["citations"] = []          # root cause will be dropped
+    pm = generate(pack, FakeClient([bad, copy.deepcopy(bad)]))
+    assert "MFA was not enforced" not in pm.executive_summary
+    assert any("summary_points[1]: DROPPED" in x for x in pm.validation_log)
+
+
+def test_acceptable_category_scored_correct():
+    from pmgen.schemas import IncidentCategory
+    gt = load_ground_truth("INC-2026-006")
+    assert IncidentCategory.CREDENTIAL_COMPROMISE in gt.acceptable_categories
+    assert load_ground_truth("INC-2026-002").acceptable_categories == []  # strict: run-1 miss stays a miss

@@ -1,0 +1,16 @@
+{
+  "export": "Windows security event export (synthetic)",
+  "events": [
+    {"time": "2026-11-10T22:41:10Z", "host": "JMP-01", "event_id": 4625, "user": "svc.backup", "src_ip": "203.0.113.66",
+     "detail": "312 failed RDP logons for svc.backup between 22:41 and 22:58"},
+    {"time": "2026-11-10T22:58:53Z", "host": "JMP-01", "event_id": 4624, "logon_type": 10, "user": "svc.backup", "src_ip": "203.0.113.66",
+     "detail": "successful remote interactive logon"},
+    {"time": "2026-11-10T23:04:15Z", "host": "JMP-01", "event_id": 4672, "user": "svc.backup", "detail": "special privileges assigned"},
+    {"time": "2026-11-10T23:31:40Z", "host": "FS-02", "event_id": 7045, "user": "svc.backup", "process": "PSEXESVC.exe",
+     "detail": "service installed remotely from JMP-01"},
+    {"time": "2026-11-10T23:33:02Z", "host": "FS-02", "event_id": 4688, "user": "svc.backup", "process": "vssadmin.exe",
+     "cmdline": "vssadmin.exe delete shadows /all /quiet"},
+    {"time": "2026-11-10T23:34:10Z", "host": "FS-02", "event_id": 4688, "user": "svc.backup", "process": "locker.exe",
+     "sha256": "e48f58a29d9e57c5e23d873afcd37bb3487369ff1ace9ee00dd2dd1401f820a2"}
+  ]
+}

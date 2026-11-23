@@ -60,3 +60,33 @@ The prompt changes were written **after seeing these three incidents fail**. A
 better score on the same three incidents would partly reflect tuning to them,
 not general improvement. A fair re-test needs incidents the prompt was not
 tuned on (planned for the evaluation phase).
+
+## Phase 5b: held-out test (rules fixed before running)
+
+Three new incidents were written **after** the run-1 prompt fixes and have never
+been shown to the model:
+
+| ID | Scenario | Hardest traps |
+|---|---|---|
+| INC-2026-004 | Internet-exposed RDP brute force, then ransomware | Ransom note *claims* 200 GB stolen; no network evidence |
+| INC-2026-005 | Departing employee uploads pipeline/pricing to personal cloud | Motive, competitor, deletion of copies all unknown |
+| INC-2026-006 | Leaked contractor cloud key, self-granted admin, GPU instances | "No data was accessed" is unprovable (S3 read logging off) |
+
+**Rules for this test:**
+1. The prompt and validator are frozen at the commit that adds this section.
+2. Each held-out incident is run once. Results are recorded as they come,
+   including failures.
+3. Ground truth may only be corrected if it is factually wrong about the
+   evidence, and every correction is listed here with the reason.
+4. No prompt changes are made because of these results until they are written
+   down. Any later re-run is labelled as tuned.
+
+Also new in 5b, applied to all incidents:
+- The executive summary is a list of points; each names the findings it
+  restates, and must hedge if any of them is not confirmed (checked in code).
+- Ground truth can list acceptable alternative categories (INC-002 stays
+  strict, so the run-1 miss is unchanged).
+- Notes with a date heading ("Log date 2026-11-10") date their HH:MM lines from
+  it, rolling to the next day past midnight.
+
+Run 2 results: _pending_.

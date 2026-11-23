@@ -14,8 +14,8 @@ from pmgen.schemas import EvidenceRef
 INCIDENTS = list_incidents()
 
 
-def test_three_incidents_bundled():
-    assert INCIDENTS == ["INC-2026-001", "INC-2026-002", "INC-2026-003"]
+def test_six_incidents_bundled():
+    assert INCIDENTS == [f"INC-2026-00{i}" for i in range(1, 7)]
 
 
 @pytest.mark.parametrize("inc", INCIDENTS)

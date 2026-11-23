@@ -1,0 +1,60 @@
+{
+  "incident_id": "INC-2026-006",
+  "title": "Leaked contractor access key used to self-grant cloud admin and launch GPU instances",
+  "category": "privilege_escalation",
+  "acceptable_categories": ["credential_compromise", "cloud_security"],
+  "severity": "SEV2",
+  "timeline": [
+    {"key": "first_attacker_call", "timestamp": "2026-11-02T01:12:40Z", "description": "First API call from 198.51.100.77", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[1]", "excerpt": "GetCallerIdentity"}},
+    {"key": "admin_attached", "timestamp": "2026-11-02T01:13:05Z", "description": "AdministratorAccess attached to c.ng", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[2]", "excerpt": "AttachUserPolicy"}},
+    {"key": "admin_alert", "timestamp": "2026-11-02T01:13:30Z", "description": "Admin policy alert (email only)", "status": "confirmed",
+     "source": {"file": "cloud_alerts.csv", "locator": "row 1", "excerpt": "Admin policy attached"}},
+    {"key": "key_created", "timestamp": "2026-11-02T01:14:20Z", "description": "Access key created for svc.reporting", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[3]", "excerpt": "CreateAccessKey"}},
+    {"key": "list_buckets", "timestamp": "2026-11-02T01:16:02Z", "description": "Buckets listed", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[4]", "excerpt": "ListBuckets"}},
+    {"key": "gpu_launch", "timestamp": "2026-11-02T01:21:47Z", "description": "4 GPU instances launched", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[5]", "excerpt": "RunInstances"}},
+    {"key": "gpu_alert", "timestamp": "2026-11-02T01:50:12Z", "description": "GPU launch alert", "status": "confirmed",
+     "source": {"file": "cloud_alerts.csv", "locator": "row 2", "excerpt": "Anomalous GPU instance launch"}},
+    {"key": "paged", "timestamp": "2026-11-02T01:58:00Z", "description": "On-call paged", "status": "confirmed",
+     "source": {"file": "ir_notes.txt", "locator": "line 3", "excerpt": "On-call paged"}},
+    {"key": "keys_deactivated", "timestamp": "2026-11-02T02:03:10Z", "description": "Access key deactivated", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[6]", "excerpt": "UpdateAccessKey"}},
+    {"key": "policy_detached", "timestamp": "2026-11-02T02:04:00Z", "description": "Admin policy detached", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[7]", "excerpt": "DetachUserPolicy"}},
+    {"key": "instances_terminated", "timestamp": "2026-11-02T02:06:30Z", "description": "GPU instances terminated", "status": "confirmed",
+     "source": {"file": "cloudtrail.json", "locator": "Records[8]", "excerpt": "TerminateInstances"}},
+    {"key": "key_found_public", "timestamp": "2026-11-02T03:10:00Z", "description": "Leaked key found in public repo", "status": "confirmed",
+     "source": {"file": "ir_notes.txt", "locator": "line 6", "excerpt": "public code repository"}}
+  ],
+  "iocs": {
+    "ip": ["198.51.100.77"]
+  },
+  "attack": [
+    {"technique_id": "T1078.004", "technique_name": "Valid Accounts: Cloud Accounts"},
+    {"technique_id": "T1098.003", "technique_name": "Account Manipulation: Additional Cloud Roles"},
+    {"technique_id": "T1098.001", "technique_name": "Account Manipulation: Additional Cloud Credentials"},
+    {"technique_id": "T1496", "technique_name": "Resource Hijacking"}
+  ],
+  "root_cause": {
+    "statement": "A long-lived contractor access key leaked to a public repository, and an over-broad iam:* permission let it grant itself admin.",
+    "certainty": "confirmed",
+    "evidence": [{"file": "ir_notes.txt", "locator": "line 6", "excerpt": "public code repository"},
+                 {"file": "ir_notes.txt", "locator": "line 7", "excerpt": "grants iam:*"}]
+  },
+  "contributing_factors": [
+    {"statement": "The admin-policy alert was routed to email, delaying response by 45 minutes.", "certainty": "confirmed",
+     "evidence": [{"file": "ir_notes.txt", "locator": "line 8", "excerpt": "routed to email, not paging"}]},
+    {"statement": "Long-lived access keys were allowed for contractors; this key was 400 days old.", "certainty": "confirmed",
+     "evidence": [{"file": "ir_notes.txt", "locator": "line 9", "excerpt": "400 days old"}]}
+  ],
+  "must_not_claim": [
+    "c.ng deliberately attacked the company",
+    "Data was exfiltrated from S3",
+    "No data was accessed from S3 (object reads cannot be ruled out)",
+    "198.51.100.77 belongs to a known threat actor"
+  ]
+}

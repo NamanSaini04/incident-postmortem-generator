@@ -48,8 +48,10 @@ Hard rules:
 6. Timeline times are already computed by code; refer to events by ID (EV001...) rather than restating times
    where possible.
 7. Corrective actions and lessons must each cite the evidence that shows why they are needed.
-8. The executive summary and severity rationale must not say more than your findings: if a finding is "probable"
-   or "possible", the summary must not state it as fact.
+8. The executive summary is a list of short points. Each point lists in based_on the findings it restates
+   ("what_happened[2]", "root_cause", "contributing_factors[0]", "detection_gaps[1]") and must not say more than
+   them. If any of those findings is not "confirmed", the point must hedge ("probably", "may", "not confirmed").
+   The severity rationale must not say more than your findings either.
 9. Category: choose it from CONFIRMED events. If the category depends on a step the evidence does not confirm
    (e.g. "phishing" when no email delivery is recorded), use the category of what is confirmed and say what is
    unconfirmed in open questions.

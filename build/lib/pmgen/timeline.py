@@ -20,6 +20,7 @@ Run:  python -m pmgen.timeline data/incidents/INC-2026-001
 """
 from __future__ import annotations
 
+import re
 import sys
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
@@ -40,6 +41,8 @@ from .schemas import (
 )
 
 MERGE_WINDOW = timedelta(seconds=2)
+_DATE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+_TIME_ONLY_START = re.compile(r"^\s*\d{1,2}:\d{2}\b")
 STRONG = {EntityType.IP, EntityType.URL, EntityType.DOMAIN, EntityType.SHA256,
           EntityType.SHA1, EntityType.MD5, EntityType.EMAIL}
 IDENTITY = {EntityType.USER, EntityType.HOST}
@@ -90,10 +93,21 @@ def build_timeline(bundle: EvidenceBundle, entities: list[ExtractedEntity] | Non
 
     warnings: list[str] = []
     candidates: list[_Candidate] = []
-    time_only: list[tuple[ExtractedEntity, str, list[ExtractedEntity]]] = []
+    # (stamp, description, entities, anchor date or None, anchor line)
+    time_only: list[tuple[ExtractedEntity, str, list[ExtractedEntity], date | None, str | None]] = []
 
     for doc in bundle.documents:
+        # Notes often carry a date heading ("Log date 2026-11-10") or a dated line;
+        # later HH:MM lines in the same file belong to that date, rolling to the
+        # next day if the clock goes backwards (e.g. 23:58 then 00:10).
+        anchor: date | None = None
+        anchor_line: str | None = None
+        last_time: tuple[int, int] | None = None
         for rec in doc.records:
+            if rec.fields is None and not _TIME_ONLY_START.match(rec.text):
+                m = _DATE.search(rec.text)
+                if m:
+                    anchor, anchor_line, last_time = date.fromisoformat(m.group(1)), rec.locator, None
             ents = by_record.get((doc.file_name, rec.locator), [])
             stamps = [e for e in ents if e.entity_type is EntityType.TIMESTAMP]
             if not stamps:
@@ -104,7 +118,12 @@ def build_timeline(bundle: EvidenceBundle, entities: list[ExtractedEntity] | Non
             ref = EvidenceRef(file=doc.file_name, locator=rec.locator, excerpt=stamp.source.excerpt)
             desc = _describe(rec.fields, rec.text)
             if stamp.attributes.get("precision") == "time_only":
-                time_only.append((stamp, desc, ents))
+                hm = tuple(map(int, stamp.value.split(":")))
+                if anchor is not None and last_time is not None and hm < last_time:
+                    anchor = anchor + timedelta(days=1)
+                    anchor_line = f"{anchor_line} (+1 day: clock went past midnight)"
+                last_time = hm
+                time_only.append((stamp, desc, ents, anchor, anchor_line))
                 continue
             if stamp.attributes.get("timezone") == "missing":
                 ts = _parse(stamp.value).replace(tzinfo=timezone.utc)
@@ -116,13 +135,18 @@ def build_timeline(bundle: EvidenceBundle, entities: list[ExtractedEntity] | Non
     # Resolve time-only notes against the dates seen in the rest of the evidence.
     days: set[date] = {c.ts.astimezone(timezone.utc).date() for c in candidates}
     undated: list[UndatedNote] = []
-    for stamp, desc, ents in time_only:
+    for stamp, desc, ents, anchor_day, anchor_from in time_only:
         ref = EvidenceRef(file=stamp.source.file, locator=stamp.source.locator, excerpt=stamp.source.excerpt)
+        hh, mm = map(int, stamp.value.split(":"))
+        if anchor_day is not None:
+            ts = datetime(anchor_day.year, anchor_day.month, anchor_day.day, hh, mm, tzinfo=timezone.utc)
+            why = f"note gave time only; date {anchor_day} taken from {stamp.source.file} {anchor_from}; timezone assumed UTC"
+            candidates.append(_Candidate(ts, TimeBasis.DATE_INFERRED, desc, ref, ents, 0.8, why))
+            continue
         if not days:
             undated.append(UndatedNote(text=desc, source=ref, reason="time only, and no dated evidence to anchor it"))
             continue
         day = max(days)
-        hh, mm = map(int, stamp.value.split(":"))
         ts = datetime(day.year, day.month, day.day, hh, mm, tzinfo=timezone.utc)
         if len(days) == 1:
             conf, why = 0.8, f"note gave time only; date {day} is the only date in the evidence; timezone assumed UTC"

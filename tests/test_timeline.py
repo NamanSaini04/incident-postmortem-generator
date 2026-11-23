@@ -138,3 +138,25 @@ def test_duplicate_alert_is_merged(tmp_path):
     folder, _ = make_variant("INC-2026-001", "dup_alert", tmp_path)
     assert len(json.loads((folder / "siem_alerts.json").read_text())["alerts"]) == 3
     assert len(build_timeline(ingest_folder(folder)).events) == len(_tl("INC-2026-001").events)
+
+
+# --- Phase 5b: date headings in notes, midnight rollover, merged-event timing ----------
+
+def test_date_heading_anchors_time_only_notes():
+    """INC-004 evidence spans two days; '23:52' must stay on the heading's date, not the latest date."""
+    tl = _tl("INC-2026-004")
+    ev = next(e for e in tl.events if e.sources[0].locator == "line 3" and e.sources[0].file == "ir_notes.txt")
+    assert ev.timestamp.isoformat() == "2026-11-10T23:52:00+00:00"
+    assert ev.confidence == 0.8 and "line 2" in ev.rationale
+
+
+def test_clock_going_backwards_rolls_to_next_day(tmp_path):
+    tl = _tl_from(tmp_path, {"a.csv": "timestamp,src_ip\n2026-01-01T23:00:00Z,203.0.113.9\n",
+                             "notes.txt": "Log date 2026-01-01\n23:50 Host isolated\n00:10 Password reset\n"})
+    times = [e.timestamp.isoformat() for e in tl.events if e.time_basis is TimeBasis.DATE_INFERRED]
+    assert times == ["2026-01-01T23:50:00+00:00", "2026-01-02T00:10:00+00:00"]
+
+
+def test_merged_event_time_accepts_any_source_within_window():
+    s = score_folder(DATA_DIR / "INC-2026-004", load_ground_truth("INC-2026-004"), "x")
+    assert s.wrong_time == []

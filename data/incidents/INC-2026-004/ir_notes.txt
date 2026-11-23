@@ -1,0 +1,13 @@
+INC-2026-004 incident response log (synthetic data for testing)
+Log date 2026-11-10 (all times UTC)
+23:52 On-call paged by the EDR mass-rename alert. The shadow-copy alert at 23:33 had not paged anyone.
+23:58 Isolated FS-02 and JMP-01 from the network.
+2026-11-11 01:20 Disabled svc.backup and blocked 203.0.113.66 at the firewall.
+2026-11-11 09:40 Restore of FS-02 from the offline backup started. About 2 days of file changes were lost.
+Finding: RDP (3389) on JMP-01 was opened to the internet in 2025 as a temporary vendor exception and never closed.
+Finding: svc.backup had a password last changed in 2022, no MFA on RDP, and admin rights on FS-02.
+Finding: the shadow-copy deletion alert was high severity but routed to a queue, not to paging.
+Ransom note README_RESTORE.txt on FS-02 asks victims to contact decrypt-desk@lockd-support.test and claims 200 GB was stolen.
+Firewall egress for FS-02 and JMP-01 shows no large outbound transfers. Egress for other hosts not yet reviewed.
+Decision: no ransom will be paid.
+Open question: unclear whether the attacker reached other servers from JMP-01.

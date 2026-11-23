@@ -4,7 +4,7 @@ Turns incident evidence (logs, alerts, analyst notes) into a structured
 postmortem where every claim cites its source. **Defensive use only.**
 Synthetic data only.
 
-**Status:** Phase 5 of 15. First LLM step: validated Markdown postmortem.
+**Status:** Phase 5b of 15. Validated LLM postmortem; 6 synthetic incidents (3 held out).
 Previous: Evidence ingestion (TXT/CSV/JSON), deterministic
 extraction, timeline reconstruction, and timeline evaluation on 3 synthetic
 incidents plus 15 messy variants (shuffled, noisy, mixed timezones,
@@ -16,7 +16,7 @@ No LLM yet. Evaluated on synthetic data only; not validated on production data.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install ".[dev,llm]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 155 passed
+pytest -q          # expect: 216 passed
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline

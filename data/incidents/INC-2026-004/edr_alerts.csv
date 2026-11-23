@@ -1,0 +1,3 @@
+timestamp,host,alert,severity,action
+2026-11-10T23:33:05Z,FS-02,Shadow copy deletion,high,detected
+2026-11-10T23:36:40Z,FS-02,Mass file rename (.lockd extension),critical,detected

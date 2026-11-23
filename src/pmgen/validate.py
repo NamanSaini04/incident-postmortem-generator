@@ -38,6 +38,36 @@ from .schemas import (
 
 LESSON_AREAS = {"people", "process", "technology", "governance"}
 RECORD_ID = re.compile(r"\bR\d{3,}\b")
+FINDING_REF = re.compile(r"^(what_happened|contributing_factors|detection_gaps)\[(\d+)\]$|^root_cause$")
+HEDGE = re.compile(r"\b(likely|probabl[ey]|may|might|possibl[ey]|appears?|suggests?|unconfirmed|not confirmed|"
+                   r"unknown|unclear|inferred|believed|consistent with|not (yet )?(established|determined|known)|"
+                   r"cannot be ruled out|not ruled out)\b", re.IGNORECASE)
+_RANK = {Certainty.CONFIRMED: 3, Certainty.PROBABLE: 2, Certainty.POSSIBLE: 1, Certainty.UNKNOWN: 0}
+
+
+def resolve_finding(d: DraftReport, ref: str):
+    m = FINDING_REF.match(ref.strip())
+    if not m:
+        return None
+    if ref.strip() == "root_cause":
+        return d.root_cause
+    items = getattr(d, m.group(1))
+    i = int(m.group(2))
+    return items[i] if i < len(items) else None
+
+
+def check_summary_point(d: DraftReport, p) -> str | None:
+    if not p.based_on:
+        return "summary point is not tied to any finding (based_on is empty)"
+    found = [resolve_finding(d, r) for r in p.based_on]
+    missing = [r for r, f in zip(p.based_on, found) if f is None]
+    if missing:
+        return f"summary point refers to findings that do not exist: {missing}"
+    weakest = min((f.certainty for f in found), key=lambda c: _RANK[c])
+    if weakest is not Certainty.CONFIRMED and not HEDGE.search(p.text):
+        return (f"summary point states a {weakest.value} finding as fact; hedge it "
+                f"(e.g. 'probably', 'may', 'not confirmed'): {p.text[:80]!r}")
+    return None
 REDACTED = "[unverified indicator removed]"
 
 
@@ -66,7 +96,8 @@ def _valid(cites: list[Citation], pack: EvidencePack) -> list[Citation]:
 
 
 def _free_text(d: DraftReport) -> list[tuple[str, str]]:
-    out = [("title", d.title), ("executive_summary", d.executive_summary),
+    out = [("title", d.title)] + [(f"summary_points[{i}]", p.text) for i, p in enumerate(d.summary_points)]
+    out += [
            ("severity_rationale", d.severity_rationale), ("root_cause", d.root_cause.statement)]
     for name, items in (("what_happened", d.what_happened), ("contributing_factors", d.contributing_factors),
                         ("detection_gaps", d.detection_gaps)):
@@ -100,6 +131,10 @@ def validate_draft(d: DraftReport, pack: EvidencePack) -> list[Issue]:
         finding(f"contributing_factors[{i}]", f)
     for i, f in enumerate(d.detection_gaps):
         finding(f"detection_gaps[{i}]", f)
+    for i, p in enumerate(d.summary_points):
+        err = check_summary_point(d, p)
+        if err:
+            issues.append(Issue(where=f"summary_points[{i}]", problem=err))
     for i, x in enumerate(d.lessons):
         cites(f"lessons[{i}]", x.citations, True)
         if x.area.lower() not in LESSON_AREAS:
@@ -177,9 +212,13 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
             log.append(f"{where}: removed unverified indicator {v!r}")
         return text
 
+    survived: set[str] = set()
+
     def to_finding(f, where: str) -> Finding | None:
         try:
-            return Finding(statement=clean(f.statement, where), certainty=f.certainty, evidence=_refs(f.citations, pack))
+            out = Finding(statement=clean(f.statement, where), certainty=f.certainty, evidence=_refs(f.citations, pack))
+            survived.add(where)
+            return out
         except ValidationError:
             log.append(f"{where}: DROPPED, {f.certainty.value} claim with no valid evidence: {f.statement[:80]!r}")
             return None
@@ -218,19 +257,35 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
                                                                excerpt=e.source.excerpt)))
     event_ids = {e.event_id for e in pack.timeline.events}
 
+    rc = to_finding(d.root_cause, "root_cause")
+    what = findings(d.what_happened, "what_happened")
+    cfs = findings(d.contributing_factors, "contributing_factors")
+    gaps = findings(d.detection_gaps, "detection_gaps")
+    summary = []
+    for i, p in enumerate(d.summary_points):
+        where = f"summary_points[{i}]"
+        err = check_summary_point(d, p)
+        lost = [r for r in p.based_on if r.strip() not in survived]
+        if err:
+            log.append(f"{where}: DROPPED, {err}")
+        elif lost:
+            log.append(f"{where}: DROPPED, based on findings that failed validation: {lost}")
+        else:
+            summary.append(clean(p.text, where))
+
     return Postmortem(
         incident_id=pack.incident_id,
         title=clean(d.title, "title"),
         category=d.category, severity=d.severity,
         severity_rationale=clean(d.severity_rationale, "severity_rationale"),
         classification_confidence=d.classification_confidence,
-        executive_summary=clean(d.executive_summary, "executive_summary"),
-        what_happened=findings(d.what_happened, "what_happened"),
+        executive_summary=" ".join(summary) or "No summary point passed validation; see the findings below.",
+        what_happened=what,
         key_event_ids=[e for e in d.key_event_ids if e in event_ids],
         indicators=indicators,
-        root_cause=to_finding(d.root_cause, "root_cause"),
-        contributing_factors=findings(d.contributing_factors, "contributing_factors"),
-        detection_gaps=findings(d.detection_gaps, "detection_gaps"),
+        root_cause=rc,
+        contributing_factors=cfs,
+        detection_gaps=gaps,
         lessons=lessons, corrective_actions=actions,
         open_questions=[clean(q, "open_questions") for q in d.open_questions],
         remaining_risks=[clean(r, "remaining_risks") for r in d.remaining_risks],

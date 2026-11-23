@@ -151,6 +151,14 @@ indicators), and every removal is listed in the report's Validation log.
 Unverified indicators in the log are defanged (`198[.]51[.]100[.]250`) so they
 can't be copied into a blocklist by mistake.
 
+**Summary check (Phase 5b):** the executive summary is a list of points, each
+naming the findings it restates (`what_happened[2]`, `root_cause`...). Code
+checks the findings exist and survived validation, and if any is not
+"confirmed", the point must contain hedging language ("probably", "may", "not
+confirmed"). A point that fails is dropped and logged. This targets run 1's
+INC-002 overclaim. Limit: it checks for hedging words, not that the point
+faithfully restates the finding.
+
 **Known gap:** a correctly quoted citation can still be used to support a
 claim it doesn't actually support. Checks 1-3 can't see that. It is measured
 with the hallucination-trap list (manual for now) and addressed in Phase 9.

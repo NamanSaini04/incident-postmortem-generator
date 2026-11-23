@@ -1,0 +1,4 @@
+timestamp,user,src_host,method,url,bytes_out,category
+2026-11-17T16:21:33Z,r.mehta,LT-SALES-07,POST,https://upload.personal-cloud.test/v2/files,38211045,personal-storage
+2026-11-17T16:22:10Z,r.mehta,LT-SALES-07,POST,https://upload.personal-cloud.test/v2/files,2203911,personal-storage
+2026-11-17T16:30:00Z,r.mehta,LT-SALES-07,GET,https://intranet.example/hr/leave,0,business

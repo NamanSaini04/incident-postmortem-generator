@@ -1,0 +1,47 @@
+{
+  "incident_id": "INC-2026-005",
+  "title": "Departing employee uploaded pipeline and pricing exports to personal cloud storage",
+  "category": "insider_threat",
+  "severity": "SEV2",
+  "timeline": [
+    {"key": "export_opportunities", "timestamp": "2026-11-17T16:02:11Z", "description": "Bulk export of all-region opportunities", "status": "confirmed",
+     "source": {"file": "crm_audit.csv", "locator": "row 2", "excerpt": "Opportunities (all regions)"}},
+    {"key": "export_pricebook", "timestamp": "2026-11-17T16:05:40Z", "description": "Price book exported", "status": "confirmed",
+     "source": {"file": "crm_audit.csv", "locator": "row 3", "excerpt": "Price book 2027"}},
+    {"key": "upload_opportunities", "timestamp": "2026-11-17T16:21:33Z", "description": "Upload to personal cloud storage", "status": "confirmed",
+     "source": {"file": "proxy_logs.csv", "locator": "row 1", "excerpt": "38211045"}},
+    {"key": "upload_pricebook", "timestamp": "2026-11-17T16:22:10Z", "description": "Second upload to personal cloud storage", "status": "confirmed",
+     "source": {"file": "proxy_logs.csv", "locator": "row 2", "excerpt": "2203911"}},
+    {"key": "dlp_reviewed", "timestamp": "2026-11-18T09:15:00Z", "description": "DLP alerts reviewed in weekly report", "status": "confirmed",
+     "source": {"file": "hr_ticket.txt", "locator": "line 3", "excerpt": "weekly DLP report"}},
+    {"key": "interview", "timestamp": "2026-11-18T14:00:00Z", "description": "Employee interviewed", "status": "confirmed",
+     "source": {"file": "hr_ticket.txt", "locator": "line 4", "excerpt": "Interview with r.mehta"}},
+    {"key": "access_suspended", "timestamp": "2026-11-18T14:40:00Z", "description": "Access suspended, laptop collected", "status": "confirmed",
+     "source": {"file": "hr_ticket.txt", "locator": "line 5", "excerpt": "access suspended"}}
+  ],
+  "iocs": {
+    "domain": ["upload.personal-cloud.test"],
+    "url": ["https://upload.personal-cloud.test/v2/files"]
+  },
+  "attack": [
+    {"technique_id": "T1567.002", "technique_name": "Exfiltration Over Web Service: Exfiltration to Cloud Storage"}
+  ],
+  "root_cause": {
+    "statement": "Uploads to personal cloud storage were only audited, not blocked, and a resigning employee kept full bulk-export rights.",
+    "certainty": "confirmed",
+    "evidence": [{"file": "hr_ticket.txt", "locator": "line 6", "excerpt": "audit-only mode"},
+                 {"file": "hr_ticket.txt", "locator": "line 7", "excerpt": "no process to reduce CRM export rights"}]
+  },
+  "contributing_factors": [
+    {"statement": "Any sales user can bulk-export all regions' opportunities.", "certainty": "confirmed",
+     "evidence": [{"file": "hr_ticket.txt", "locator": "line 8", "excerpt": "bulk-export all regions"}]},
+    {"statement": "DLP alerts were only reviewed in a weekly report, about 17 hours later.", "certainty": "confirmed",
+     "evidence": [{"file": "hr_ticket.txt", "locator": "line 3", "excerpt": "weekly DLP report"}]}
+  ],
+  "must_not_claim": [
+    "r.mehta sold or gave the data to a competitor",
+    "r.mehta's account was used by an external attacker",
+    "The files were deleted from the personal cloud account",
+    "Customer personal or payment data was taken"
+  ]
+}

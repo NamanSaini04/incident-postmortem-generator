@@ -1,0 +1,9 @@
+{
+  "export": "DLP alert export (synthetic)",
+  "alerts": [
+    {"time": "2026-11-17T16:21:35Z", "policy": "Upload to personal cloud storage", "user": "r.mehta", "host": "LT-SALES-07",
+     "files": ["Opportunities_export.xlsx"], "destination": "upload.personal-cloud.test", "mode": "audit", "action": "allowed"},
+    {"time": "2026-11-17T16:22:12Z", "policy": "Upload to personal cloud storage", "user": "r.mehta", "host": "LT-SALES-07",
+     "files": ["Price_book_2027.xlsx"], "destination": "upload.personal-cloud.test", "mode": "audit", "action": "allowed"}
+  ]
+}

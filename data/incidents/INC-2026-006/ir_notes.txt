@@ -1,0 +1,12 @@
+INC-2026-006 cloud incident log (synthetic data for testing)
+Log date 2026-11-02 (all times UTC)
+01:58 On-call paged by the GPU launch alert. The admin-policy alert at 01:13 went to email only.
+02:03 Deactivated both access keys for c.ng and the new key created for svc.reporting.
+02:06 Terminated the 4 GPU instances.
+03:10 Secret scanning found c.ng's access key in a public code repository commit dated 2026-10-30.
+Finding: the CI deploy policy attached to the contractors group grants iam:* so any member could attach AdministratorAccess to themselves.
+Finding: the admin-policy alert is routed to email, not paging.
+Finding: long-lived access keys are allowed for contractor users; c.ng's key was 400 days old.
+S3 data-event logging is not enabled, so object reads cannot be ruled out. Management events show ListBuckets only.
+Open question: unknown who committed the key to the public repository.
+c.ng normally works from 192.0.2.80; 198.51.100.77 has not been seen before for this account.

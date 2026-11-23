@@ -1,0 +1,11 @@
+Case INC-2026-005 HR and Security notes (synthetic data for testing)
+r.mehta (Sales) resigned on 2026-11-14 with a last working day of 2026-11-28. New employer not disclosed.
+2026-11-18 09:15 Security reviewed the DLP alerts as part of the weekly DLP report.
+2026-11-18 14:00 Interview with r.mehta: said the files were copied "for personal reference" and agreed to delete them.
+2026-11-18 14:40 r.mehta's CRM and VPN access suspended; laptop collected.
+Finding: the DLP rule for personal cloud uploads has run in audit-only mode since the 2025 rollout.
+Finding: there is no process to reduce CRM export rights when an employee resigns.
+Finding: the CRM lets any sales user bulk-export all regions' opportunities.
+Data involved: pipeline forecast and pricing. The exported fields contain no customer personal data and no payment data.
+Open question: deletion from the personal cloud account is not verified; copies may remain.
+All activity came from r.mehta's managed laptop LT-SALES-07 on the office network.

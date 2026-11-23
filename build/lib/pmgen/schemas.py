@@ -282,6 +282,8 @@ class GroundTruth(BaseModel):
     incident_id: str = Field(pattern=r"^INC-\d{4}-\d{3}$")
     title: str
     category: IncidentCategory
+    acceptable_categories: list[IncidentCategory] = Field(
+        default_factory=list, description="Other categories a reasonable analyst could choose; scored as correct.")
     severity: Severity
     timeline: list[GroundTruthEvent] = Field(min_length=3)
     iocs: dict[EntityType, list[str]]
@@ -338,13 +340,20 @@ class DraftAction(BaseModel):
     expected_benefit: str
 
 
+class SummaryPoint(BaseModel):
+    text: str
+    based_on: list[str] = Field(
+        default_factory=list,
+        description='Findings this point restates, e.g. "what_happened[2]", "root_cause", "contributing_factors[0]", "detection_gaps[1]"')
+
+
 class DraftReport(BaseModel):
     title: str
     category: IncidentCategory
     severity: Severity
     severity_rationale: str
     classification_confidence: float = Field(ge=0.0, le=1.0)
-    executive_summary: str
+    summary_points: list[SummaryPoint] = Field(description="Executive summary as 3-7 short points, each tied to findings")
     what_happened: list[DraftFinding]
     key_event_ids: list[str] = Field(default_factory=list, description="Timeline event IDs (EV001...) that matter most")
     indicators: list[str] = Field(default_factory=list, description="Malicious indicators, copied exactly from the observables list")

@@ -1,0 +1,25 @@
+{
+  "export": "Cloud audit log export (synthetic)",
+  "Records": [
+    {"eventTime": "2026-11-01T15:40:00Z", "eventName": "DescribeInstances", "userIdentity": {"userName": "c.ng"},
+     "sourceIPAddress": "192.0.2.80", "userAgent": "aws-cli/2.15"},
+    {"eventTime": "2026-11-02T01:12:40Z", "eventName": "GetCallerIdentity", "userIdentity": {"userName": "c.ng"},
+     "sourceIPAddress": "198.51.100.77", "userAgent": "python-boto3"},
+    {"eventTime": "2026-11-02T01:13:05Z", "eventName": "AttachUserPolicy", "userIdentity": {"userName": "c.ng"},
+     "sourceIPAddress": "198.51.100.77", "userAgent": "python-boto3",
+     "requestParameters": {"targetUser": "c.ng", "policyArn": "arn:aws:iam::aws:policy/AdministratorAccess"}},
+    {"eventTime": "2026-11-02T01:14:20Z", "eventName": "CreateAccessKey", "userIdentity": {"userName": "c.ng"},
+     "sourceIPAddress": "198.51.100.77", "userAgent": "python-boto3", "requestParameters": {"targetUser": "svc.reporting"}},
+    {"eventTime": "2026-11-02T01:16:02Z", "eventName": "ListBuckets", "userIdentity": {"userName": "c.ng"},
+     "sourceIPAddress": "198.51.100.77", "userAgent": "python-boto3"},
+    {"eventTime": "2026-11-02T01:21:47Z", "eventName": "RunInstances", "userIdentity": {"userName": "c.ng"},
+     "sourceIPAddress": "198.51.100.77", "userAgent": "python-boto3",
+     "requestParameters": {"instanceType": "p4d.24xlarge", "count": 4}},
+    {"eventTime": "2026-11-02T02:03:10Z", "eventName": "UpdateAccessKey", "userIdentity": {"userName": "cloud.secops"},
+     "sourceIPAddress": "192.0.2.15", "requestParameters": {"targetUser": "c.ng", "status": "Inactive"}},
+    {"eventTime": "2026-11-02T02:04:00Z", "eventName": "DetachUserPolicy", "userIdentity": {"userName": "cloud.secops"},
+     "sourceIPAddress": "192.0.2.15", "requestParameters": {"targetUser": "c.ng", "policyArn": "arn:aws:iam::aws:policy/AdministratorAccess"}},
+    {"eventTime": "2026-11-02T02:06:30Z", "eventName": "TerminateInstances", "userIdentity": {"userName": "cloud.secops"},
+     "sourceIPAddress": "192.0.2.15", "requestParameters": {"count": 4}}
+  ]
+}
