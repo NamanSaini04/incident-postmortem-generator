@@ -167,4 +167,58 @@ INC-001 `POL-12#3`, INC-003 `PB-05#2`, INC-006 `POL-12#2`.
   affected, so the comparison is fair, but absolute scores are not a fresh test.
 - Expected cost at $2 / $10 per million tokens: about $1–1.50 for all 12 runs.
 
-A/B results: _pending_.
+### A/B results (2026-11-23, one run per incident per arm)
+
+Reports: `docs/sample_reports/ab/`. Summary table: `docs/sample_reports/ab/ab_summary.md`.
+
+| Mean over 6 incidents | Without RAG | With RAG |
+|---|---|---|
+| Category / severity / root cause / contributing factors | 100% | 100% |
+| Indicator recall | 67% | 100% |
+| Claims removed by validator | 0 | 0 |
+| Traps avoided (manual) | 23/23 | 23/23 |
+| Policy recall | 0% (by construction) | 85% |
+| Corrective actions citing a policy | 0% (by construction) | 95% |
+
+**Reading the numbers honestly**
+- The two policy metrics are 0% without RAG by design (there is nothing to
+  cite). They show the citations happen, not that the content is better.
+- INC-002 category and INC-003 severity, both missed in run 1, are now correct
+  in both arms. That is the effect of the post-run-1 prompt rules, not RAG.
+- The indicator difference (INC-003 and INC-005 listed no indicators without
+  RAG) is a single run per arm and may be run-to-run noise.
+
+**What RAG changed in the content (manual review)**
+- INC-004: noticed a past review (PIR-2025-031) had already agreed the
+  exception-expiry fix and the same failure recurred; added "restore only after
+  the entry point is closed" (PB-02 §5).
+- INC-005: flagged that the laptop was collected after the interview, against
+  the insider playbook (PB-05 §3). Absent without RAG.
+- INC-006: "treat data as potentially exposed" when reads cannot be ruled out
+  (PB-04 §4), where the no-RAG report only said "unknown".
+- Recommendations cite concrete rules ("audit mode at most 30 days",
+  POL-12 §5) instead of generic advice, so they can be checked against policy.
+
+**Where RAG was weak**
+- Policy-citation fit (my judgement): 31 of 33 citations apply; 2 are weak
+  (INC-002 cites PIR-2025-014's alert-delay lesson for an EDR backlog; INC-001
+  cites PB-01 §1 "triggers" for a triage-correlation lesson).
+- Retrieval misses show in the output: INC-006's paging action has no policy
+  citation because POL-12 §2 was not retrieved.
+
+**Problems seen in both arms: certainty drift between runs**
+- INC-006 (RAG): `iam:*` factor marked confirmed; run 2 correctly said probable.
+- INC-005 (no RAG): uploaded files stated as confirmed to be the exports; only
+  file names match.
+- INC-004 (RAG): summary says locker.exe "encrypted files", an inference inside
+  findings the model labelled confirmed, which the hedge check cannot see.
+- One run per arm cannot separate RAG effects from this variation. Repeated
+  runs per incident are needed before claiming any accuracy difference.
+
+**Validator in action:** the no-RAG INC-006 draft first stated a probable and an
+unknown finding as fact in the summary; both were caught, logged with details,
+and fixed on retry.
+
+**Conclusion:** RAG made recommendations more specific, auditable and
+occasionally more insightful, with no loss of accuracy or trap safety. It did
+not make the analysis more correct; the core scores were already at ceiling.
