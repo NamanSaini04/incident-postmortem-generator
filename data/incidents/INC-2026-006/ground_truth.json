@@ -41,7 +41,7 @@
   ],
   "root_cause": {
     "statement": "A long-lived contractor access key leaked to a public repository, and an over-broad iam:* permission let it grant itself admin.",
-    "certainty": "confirmed",
+    "certainty": "probable",
     "evidence": [{"file": "ir_notes.txt", "locator": "line 6", "excerpt": "public code repository"},
                  {"file": "ir_notes.txt", "locator": "line 7", "excerpt": "grants iam:*"}]
   },

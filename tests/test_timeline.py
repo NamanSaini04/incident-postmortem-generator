@@ -160,3 +160,12 @@ def test_clock_going_backwards_rolls_to_next_day(tmp_path):
 def test_merged_event_time_accepts_any_source_within_window():
     s = score_folder(DATA_DIR / "INC-2026-004", load_ground_truth("INC-2026-004"), "x")
     assert s.wrong_time == []
+
+
+def test_descriptions_keep_alert_names_and_details():
+    tl6 = _tl("INC-2026-006")
+    alert = next(e for e in tl6.events if e.sources[0].file == "cloud_alerts.csv")
+    assert "alert=Admin policy attached to user" in alert.description
+    tl4 = _tl("INC-2026-004")
+    brute = next(e for e in tl4.events if e.sources[0].locator == "events[0]")
+    assert "312 failed RDP logons" in brute.description

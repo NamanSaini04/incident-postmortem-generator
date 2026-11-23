@@ -16,7 +16,7 @@ No LLM yet. Evaluated on synthetic data only; not validated on production data.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install ".[dev,llm]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 216 passed
+pytest -q          # expect: 218 passed
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline

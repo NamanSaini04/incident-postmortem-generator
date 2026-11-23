@@ -118,6 +118,10 @@ def generate(pack: EvidencePack, client: LLMClient, max_retries: int = MAX_RETRI
         issues = validate_draft(draft, pack)
         best = (draft, issues)
         history.append(f"attempt {attempt + 1}: {len(issues)} validation problem(s)")
+        if issues and attempt < max_retries:
+            # Keep the details: the final attempt's problems are logged by build_postmortem,
+            # but earlier ones would otherwise be lost (gap found in run 2).
+            history += [f"attempt {attempt + 1} problem: {i.where}: {i.problem}" for i in issues]
         if not issues:
             break
     if best is None:
@@ -125,7 +129,8 @@ def generate(pack: EvidencePack, client: LLMClient, max_retries: int = MAX_RETRI
                        + "\n".join(f"{i.where}: {i.problem}" for i in issues or []))
     draft, final_issues = best
     pm = build_postmortem(draft, pack, client.model, final_issues)
-    pm.validation_log = history + pm.validation_log
+    from .validate import defang_unknown
+    pm.validation_log = [defang_unknown(x, pack.observables) for x in history] + pm.validation_log
     return pm
 
 

@@ -48,9 +48,10 @@ STRONG = {EntityType.IP, EntityType.URL, EntityType.DOMAIN, EntityType.SHA256,
 IDENTITY = {EntityType.USER, EntityType.HOST}
 
 # Fields worth showing in a mechanical description, in priority order.
-DESC_FIELDS = ["rule", "event", "eventName", "operation", "subject", "action", "result",
-               "method", "app", "process", "cmdline", "url", "dest", "key", "user", "userName",
-               "src_host", "src_ip", "remote_ip", "recipient", "severity"]
+DESC_FIELDS = ["rule", "alert", "policy", "event", "eventName", "event_id", "operation", "subject", "action",
+               "result", "detail", "method", "app", "process", "cmdline", "url", "dest", "destination", "files",
+               "key", "object", "record_count", "user", "userName", "host", "src_host", "src_ip", "remote_ip",
+               "recipient", "severity"]
 CONFIDENCE = {TimeBasis.EXACT: 0.95, TimeBasis.TIMEZONE_ASSUMED: 0.8, TimeBasis.DATE_INFERRED: 0.8}
 
 
@@ -77,8 +78,11 @@ def _describe(fields: dict | None, text: str) -> str:
                     flat[k2] = str(v2)
         elif not isinstance(v, list):
             flat[k] = str(v)
+    for k, v in fields.items():
+        if isinstance(v, list) and v and all(not isinstance(x, (dict, list)) for x in v):
+            flat[k] = ", ".join(map(str, v))
     parts = [f"{k}={flat[k]}" for k in DESC_FIELDS if flat.get(k) not in (None, "", "-")]
-    return "; ".join(parts[:6]) or text[:200]
+    return "; ".join(parts[:7]) or text[:200]
 
 
 def _parse(value: str) -> datetime:

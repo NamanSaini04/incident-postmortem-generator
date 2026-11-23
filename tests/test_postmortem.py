@@ -116,7 +116,8 @@ def test_retry_sends_problems_back_and_uses_fixed_draft(pack):
     assert "FAILED THESE CHECKS" in client.calls[1][1] and "invented quote" in client.calls[1][1]
     assert pm.root_cause is not None
     # a fake quote gives 2 problems: the quote isn't in the record, and no valid citation is left
-    assert pm.validation_log[:2] == ["attempt 1: 2 validation problem(s)", "attempt 2: 0 validation problem(s)"]
+    summaries = [x for x in pm.validation_log if x.startswith("attempt") and "validation problem" in x]
+    assert summaries == ["attempt 1: 2 validation problem(s)", "attempt 2: 0 validation problem(s)"]
 
 
 def test_still_bad_after_retry_drops_claim_and_logs_it(pack):
@@ -380,3 +381,10 @@ def test_acceptable_category_scored_correct():
     gt = load_ground_truth("INC-2026-006")
     assert IncidentCategory.CREDENTIAL_COMPROMISE in gt.acceptable_categories
     assert load_ground_truth("INC-2026-002").acceptable_categories == []  # strict: run-1 miss stays a miss
+
+
+def test_earlier_attempt_problems_are_kept_in_log(pack):
+    bad = good_draft(pack)
+    bad["root_cause"]["citations"][0]["quote"] = "invented quote"
+    pm = generate(pack, FakeClient([bad, good_draft(pack)]))
+    assert any(x.startswith("attempt 1 problem: root_cause:") and "invented quote" in x for x in pm.validation_log)
