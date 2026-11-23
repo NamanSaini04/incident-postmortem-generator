@@ -30,7 +30,7 @@
   "iocs": {
     "ip": ["203.0.113.45"],
     "domain": ["micros0ft-helpdesk.test", "login-micros0ft.test", "exfil-drop.test"],
-    "url": ["https://login-micros0ft.test/reset?u=jpatel", "https://login-micros0ft.test/submit"],
+    "url": ["https://login-micros0ft.test/reset?u=jpatel", "https://login-micros0ft.test/reset?u=akhan", "https://login-micros0ft.test/submit"],
     "email": ["it-support@micros0ft-helpdesk.test", "mailbox-sync@exfil-drop.test"]
   },
   "attack": [

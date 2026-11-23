@@ -16,7 +16,7 @@ No LLM yet. Evaluated on synthetic data only; not validated on production data.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install ".[dev,llm]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 135 passed
+pytest -q          # expect: 155 passed
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline
@@ -34,6 +34,8 @@ python -m pmgen.postmortem data/incidents/INC-2026-001  # writes reports/INC-202
 ```
 
 Default model: `claude-sonnet-5-5`. Override with `--model` or `PMGEN_MODEL`.
+JSON is requested in the prompt by default; `--mode structured` uses the API's
+constrained output instead (fails on this schema with current models, see docs).
 If ground truth exists, a score is printed, plus a list of statements to
 check by hand (the hallucination traps).
 
@@ -61,4 +63,4 @@ docs/architecture.md      Design, pipeline diagram, roadmap
 tests/                    Schema rules + ground-truth consistency
 ```
 
-See `docs/architecture.md` for the design.
+See `docs/architecture.md` for the design and `docs/results.md` for real-model results.

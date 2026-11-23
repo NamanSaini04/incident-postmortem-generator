@@ -125,10 +125,11 @@ class ReportScore(BaseModel):
     incident_id: str
     category_correct: bool
     severity_correct: bool
+    severity_off_by: int           # levels between predicted and true severity (SEV1 vs SEV2 = 1)
     root_cause_grounded: bool      # root cause cites the same record as the ground-truth root cause
     contributing_factor_recall: float  # share of GT contributing factors whose record is cited somewhere
     indicator_recall: float        # share of GT IOCs listed as indicators
-    indicator_precision: float     # share of listed indicators that are GT IOCs
+    indicator_precision: float | None  # share of listed indicators that are GT IOCs; None if none listed
     claims_removed: int            # items dropped by the validator
     must_not_claim: list[str]      # for MANUAL check: these must not appear as confirmed facts
 
@@ -146,16 +147,19 @@ def score_report(gt: GroundTruth, pm) -> ReportScore:
         cited |= loc(a.supporting_evidence)
     cf = gt.contributing_factors
     cf_hit = sum(bool(loc(f.evidence) & cited) for f in cf)
-    gt_iocs = {v.lower() for vals in gt.iocs.values() for v in vals}
+    from .evidence_pack import INDICATOR_TYPES
+    # Only indicator types the system can list (IP/domain/URL/email/hash) are scored.
+    gt_iocs = {v.lower() for t, vals in gt.iocs.items() if t in INDICATOR_TYPES for v in vals}
     listed = {i.value.lower() for i in pm.indicators}
     return ReportScore(
         incident_id=gt.incident_id,
         category_correct=pm.category == gt.category,
         severity_correct=pm.severity == gt.severity,
+        severity_off_by=abs(int(pm.severity.value[-1]) - int(gt.severity.value[-1])),
         root_cause_grounded=bool(rc & gt_rc),
         contributing_factor_recall=cf_hit / len(cf) if cf else 1.0,
         indicator_recall=len(listed & gt_iocs) / len(gt_iocs) if gt_iocs else 1.0,
-        indicator_precision=len(listed & gt_iocs) / len(listed) if listed else 0.0,
+        indicator_precision=len(listed & gt_iocs) / len(listed) if listed else None,
         claims_removed=sum("DROPPED" in x or "removed unverified" in x for x in pm.validation_log),
         must_not_claim=gt.must_not_claim,
     )

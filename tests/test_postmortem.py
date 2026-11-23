@@ -171,3 +171,175 @@ def test_cli_without_key_fails_clearly(capsys, monkeypatch, tmp_path):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     assert main([str(DATA_DIR / INC), "--out", str(tmp_path)]) == 1
     assert "ANTHROPIC_API_KEY is not set" in capsys.readouterr().err
+
+
+# --- real client request shape (SDK faked; no network) ------------------------------
+
+from types import SimpleNamespace  # noqa: E402
+
+from pmgen.llm import AnthropicClient, LLMOutputError, extract_json, strict_schema  # noqa: E402
+from pmgen.postmortem import normalise_enums  # noqa: E402
+
+
+class _FakeMessages:
+    def __init__(self, reply):
+        self.reply, self.kwargs = reply, None
+
+    def create(self, **kwargs):
+        self.kwargs = kwargs
+        return self.reply
+
+
+def _client_with(monkeypatch, reply, mode="prompt"):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-not-a-real-key")
+    c = AnthropicClient(model="claude-sonnet-5-5", mode=mode)
+    fake = _FakeMessages(reply)
+    c._client = SimpleNamespace(messages=fake)
+    return c, fake
+
+
+def _reply(text, stop="end_turn"):
+    return SimpleNamespace(stop_reason=stop, content=[SimpleNamespace(type="text", text=text)],
+                           usage=SimpleNamespace(input_tokens=10, output_tokens=5))
+
+
+def test_default_request_is_prompt_mode(monkeypatch, pack):
+    """Default: schema in the prompt, no constrained decoding, no forced tools.
+    (Structured outputs failed on the real API: 'compiled grammar is too large'.)"""
+    c, fake = _client_with(monkeypatch, _reply("<json>" + json.dumps(good_draft(pack)) + "</json>"))
+    out = c.generate_json("sys", "user", DraftReport.model_json_schema())
+    assert out["title"].startswith("Credential")
+    assert "tool_choice" not in fake.kwargs and "tools" not in fake.kwargs   # rejected by current models
+    assert "output_config" not in fake.kwargs
+    msg = fake.kwargs["messages"][0]["content"]
+    assert "<json>" in msg and "JSON SCHEMA" in msg and '"root_cause"' in msg
+
+
+def test_structured_mode_is_opt_in(monkeypatch, pack):
+    c, fake = _client_with(monkeypatch, _reply(json.dumps(good_draft(pack))), mode="structured")
+    c.generate_json("sys", "user", DraftReport.model_json_schema())
+    assert fake.kwargs["output_config"]["format"]["type"] == "json_schema"
+    assert "tool_choice" not in fake.kwargs
+
+
+def test_strict_schema_meets_api_limits():
+    s = strict_schema(DraftReport.model_json_schema())
+    txt = json.dumps(s)
+    assert "$ref" not in txt and "$defs" not in txt
+
+    def objects(n):
+        if isinstance(n, dict):
+            if n.get("type") == "object" and "properties" in n:
+                yield n
+            for v in n.values():
+                yield from objects(v)
+        elif isinstance(n, list):
+            for x in n:
+                yield from objects(x)
+
+    for o in objects(s):
+        assert o["additionalProperties"] is False
+        assert set(o["required"]) == set(o["properties"])  # nothing optional
+
+
+@pytest.mark.parametrize("stop,msg", [("refusal", "declined"), ("max_tokens", "cut off")])
+def test_bad_stop_reasons_raise_clear_errors(monkeypatch, stop, msg):
+    c, _ = _client_with(monkeypatch, _reply("{}", stop=stop))
+    with pytest.raises(LLMError, match=msg):
+        c.generate_json("s", "u", DraftReport.model_json_schema())
+
+
+def test_non_json_reply_raises(monkeypatch):
+    c, _ = _client_with(monkeypatch, _reply("not json"))
+    with pytest.raises(LLMOutputError, match="no JSON object"):
+        c.generate_json("s", "u", DraftReport.model_json_schema())
+
+
+@pytest.mark.parametrize("text", [
+    'Here you go <json>{"a": 1}</json> thanks',
+    'Sure:\n```json\n{"a": 1}\n```',
+    'blah {"a": 1} blah',
+])
+def test_extract_json_formats(text):
+    assert extract_json(text) == {"a": 1}
+
+
+def test_broken_json_raises_output_error():
+    with pytest.raises(LLMOutputError, match="could not be parsed"):
+        extract_json('<json>{"a": 1,,}</json>')
+
+
+def test_unparseable_reply_is_retried(pack):
+    client = FakeClient([LLMOutputError("reply JSON could not be parsed: x"), good_draft(pack)])
+    pm = generate(pack, client)
+    assert len(client.calls) == 2
+    assert "could not be parsed" in client.calls[1][1]
+    assert pm.validation_log[0].startswith("attempt 1: reply could not be parsed")
+    assert pm.root_cause is not None
+
+
+def test_unparseable_twice_errors(pack):
+    with pytest.raises(LLMError, match="no draft matched"):
+        generate(pack, FakeClient([LLMOutputError("bad"), LLMOutputError("bad")]))
+
+
+def test_enum_case_is_normalised(pack):
+    d = good_draft(pack)
+    d["category"], d["severity"] = "Credential_Compromise", "sev2"
+    d["root_cause"]["certainty"] = "Confirmed"
+    pm = generate(pack, FakeClient([d]))
+    assert pm.category.value == "credential_compromise" and pm.severity.value == "SEV2"
+    assert normalise_enums({"x": [{"priority": "HIGH"}]}) == {"x": [{"priority": "high"}]}
+
+
+def test_precision_is_undefined_when_nothing_listed(pack):
+    d = good_draft(pack)
+    d["indicators"] = []
+    s = score_report(load_ground_truth(INC), generate(pack, FakeClient([d])))
+    assert s.indicator_precision is None and s.indicator_recall == 0.0
+
+
+def test_ground_truth_iocs_are_all_listable():
+    """A GT IOC the system can never list (e.g. a cloud bucket) would cap recall unfairly."""
+    from pmgen.evidence_pack import INDICATOR_TYPES
+    from pmgen.samples import list_incidents
+    for inc in list_incidents():
+        assert set(load_ground_truth(inc).iocs) <= INDICATOR_TYPES, inc
+
+
+# --- fixes from the first real-model run (2026-11-23) ------------------------------
+
+def test_record_ids_in_text_become_readable(pack):
+    d = good_draft(pack)
+    rid_notes = rid(pack, "analyst_notes.txt", "line 10")
+    d["open_questions"] = [f"Was SharePoint accessed? ({rid_notes})"]
+    pm = generate(pack, FakeClient([d]))
+    assert pm.open_questions == ["Was SharePoint accessed? (analyst_notes.txt line 10)"]
+
+
+def test_unknown_record_id_in_text_is_flagged(pack):
+    d = good_draft(pack)
+    d["remaining_risks"] = ["See R999"]
+    issues = validate_draft(DraftReport.model_validate(d), pack)
+    assert any("R999" in i.problem and "does not exist" in i.problem for i in issues)
+
+
+def test_title_does_not_repeat_incident_id(pack):
+    d = good_draft(pack)
+    d["title"] = "INC-2026-001: Mailbox takeover"
+    md = render_markdown(generate(pack, FakeClient([d])))
+    assert md.splitlines()[0] == "# Incident Postmortem: INC-2026-001: Mailbox takeover"
+
+
+def test_prompt_defines_severity_scale_and_category_rule():
+    from pmgen.postmortem import SYSTEM_PROMPT
+    for s in ("SEV1 critical", "SEV2 high", "SEV3 medium", "SEV4 low", "from CONFIRMED events",
+              "must not say more than your findings"):
+        assert s in SYSTEM_PROMPT
+
+
+def test_severity_distance(pack):
+    d = good_draft(pack)
+    d["severity"] = "SEV4"
+    s = score_report(load_ground_truth(INC), generate(pack, FakeClient([d])))
+    assert s.severity_off_by == 2 and not s.severity_correct

@@ -22,8 +22,7 @@
      "source": {"file": "notes.txt", "locator": "line 9", "excerpt": "Legal and privacy team informed"}}
   ],
   "iocs": {
-    "ip": ["198.51.100.23"],
-    "cloud_resource": ["acme-crm-exports"]
+    "ip": ["198.51.100.23"]
   },
   "attack": [
     {"technique_id": "T1530", "technique_name": "Data from Cloud Storage"}

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -25,7 +26,7 @@ from pydantic import ValidationError
 
 from .evidence_pack import EvidencePack, build_pack
 from .ingest import ingest_folder
-from .llm import AnthropicClient, LLMClient, LLMError
+from .llm import AnthropicClient, LLMClient, LLMError, LLMOutputError
 from .schemas import DraftReport, Postmortem, TimeBasis
 from .validate import Issue, build_postmortem, validate_draft
 
@@ -47,18 +48,48 @@ Hard rules:
 6. Timeline times are already computed by code; refer to events by ID (EV001...) rather than restating times
    where possible.
 7. Corrective actions and lessons must each cite the evidence that shows why they are needed.
-8. Be concise and specific. No filler."""
+8. The executive summary and severity rationale must not say more than your findings: if a finding is "probable"
+   or "possible", the summary must not state it as fact.
+9. Category: choose it from CONFIRMED events. If the category depends on a step the evidence does not confirm
+   (e.g. "phishing" when no email delivery is recorded), use the category of what is confirmed and say what is
+   unconfirmed in open questions.
+10. Severity (use this scale; do not invent your own):
+   SEV1 critical: confirmed access to or exposure of sensitive personal/customer data or credentials at scale,
+        likely legal or regulatory notification, ransomware, or widespread business disruption.
+   SEV2 high: confirmed compromise of a user account or host with attacker activity, contained, with no
+        confirmed large-scale sensitive data exposure.
+   SEV3 medium: attempted or minor compromise, quickly contained, minimal impact.
+   SEV4 low: suspicious activity with no confirmed compromise.
+   How quickly an exposure was closed after it was reported does not lower severity if data was already taken.
+11. Refer to evidence in free text by record ID (e.g. R012) only; code converts these for readers.
+12. Be concise and specific. No filler."""
 
 
 def build_user_prompt(pack: EvidencePack, issues: list[Issue] | None = None, previous: dict | None = None) -> str:
     parts = [pack.to_prompt(), "",
-             "Write the postmortem draft by calling the submit_postmortem tool."]
+             "Write the postmortem draft as JSON matching the schema below. "
+             "Use empty lists where a section has nothing supported by evidence."]
     if issues:
         parts += ["", "YOUR PREVIOUS DRAFT FAILED THESE CHECKS. Fix every one and resubmit the full draft:"]
         parts += [f"- {i.where}: {i.problem}" for i in issues]
         if previous is not None:
             parts += ["", "PREVIOUS DRAFT:", json.dumps(previous, indent=1)[:20000]]
     return "\n".join(parts)
+
+
+_ENUM_CASE = {"category": str.lower, "severity": str.upper, "certainty": str.lower, "priority": str.lower,
+              "area": str.lower}
+
+
+def normalise_enums(node):
+    """Structured outputs may return enum values that differ only in letter case
+    (documented API behaviour); fix that before validation."""
+    if isinstance(node, dict):
+        return {k: (_ENUM_CASE[k](v) if k in _ENUM_CASE and isinstance(v, str) else normalise_enums(v))
+                for k, v in node.items()}
+    if isinstance(node, list):
+        return [normalise_enums(x) for x in node]
+    return node
 
 
 def generate(pack: EvidencePack, client: LLMClient, max_retries: int = MAX_RETRIES) -> Postmortem:
@@ -68,7 +99,13 @@ def generate(pack: EvidencePack, client: LLMClient, max_retries: int = MAX_RETRI
     history: list[str] = []
     best: tuple[DraftReport, list[Issue]] | None = None  # latest draft that parsed, with its problems
     for attempt in range(max_retries + 1):
-        raw = client.generate_json(SYSTEM_PROMPT, build_user_prompt(pack, issues, raw), schema)
+        try:
+            raw = normalise_enums(client.generate_json(SYSTEM_PROMPT, build_user_prompt(pack, issues, raw), schema))
+        except LLMOutputError as e:
+            issues = [Issue(where="reply", problem=str(e))]
+            history.append(f"attempt {attempt + 1}: reply could not be parsed ({e})")
+            raw = None
+            continue
         try:
             draft = DraftReport.model_validate(raw)
         except ValidationError as e:
@@ -121,7 +158,8 @@ def render_markdown(pm: Postmortem) -> str:
     cite = _Cites()
     key = set(pm.key_event_ids)
     L: list[str] = []
-    L += [f"# Incident Postmortem: {pm.incident_id}: {pm.title}", "",
+    title = re.sub(rf"^\s*{re.escape(pm.incident_id)}\s*[:\-]\s*", "", pm.title)
+    L += [f"# Incident Postmortem: {pm.incident_id}: {title}", "",
           "> **DRAFT: requires human review.** Generated from evidence by code plus an LLM. "
           "Every claim below cites its source record; claims that failed validation were removed "
           "(see Validation log).", "",
@@ -220,17 +258,26 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=Path("reports"))
     ap.add_argument("--model", default=None)
     ap.add_argument("--dry-run", action="store_true", help="build the prompt only; no API call")
+    ap.add_argument("--mode", choices=["prompt", "structured"], default=None,
+                    help="how JSON is obtained (default: prompt; structured may fail on large schemas)")
     args = ap.parse_args(argv)
 
     pack = build_pack(ingest_folder(args.incident_folder))
     prompt = build_user_prompt(pack)
     if args.dry_run:
+        from .llm import schema_instructions
+        prompt = prompt + "\n\n" + schema_instructions(DraftReport.model_json_schema())
         print(prompt)
         print(f"\n--- {len(pack.records)} records, {len(pack.timeline.events)} events, "
               f"~{(len(SYSTEM_PROMPT) + len(prompt)) // 4} input tokens (rough estimate) ---")
         return 0
     try:
-        client = AnthropicClient(**({"model": args.model} if args.model else {}))
+        opts = {}
+        if args.model:
+            opts["model"] = args.model
+        if args.mode:
+            opts["mode"] = args.mode
+        client = AnthropicClient(**opts)
         pm = generate(pack, client)
     except LLMError as e:
         print(f"error: {e}", file=sys.stderr)
@@ -252,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
         print("\nSCORE vs ground truth:")
         for k, v in s.model_dump().items():
             if k != "must_not_claim":
-                print(f"  {k:<28} {v:.0%}" if isinstance(v, float) else f"  {k:<28} {v}")
+                print(f"  {k:<28} {v:.0%}" if isinstance(v, float) else f"  {k:<28} {'n/a (none listed)' if v is None else v}")
         print("  CHECK BY HAND - the report must NOT state these as fact:")
         for x in s.must_not_claim:
             print(f"    - {x}")

@@ -124,7 +124,18 @@ The scorer itself is tested: sabotaging a timeline lowers all three scores.
 
 The LLM sees only the evidence pack: every record numbered (R001...), the
 code-built timeline (EV001...), and the extracted observables. It never sees
-the ground truth. It returns a structured draft through a forced tool call.
+the ground truth. It returns a JSON draft. How the JSON is obtained was changed twice after
+real API runs:
+
+| Attempt | Result on claude-sonnet-5-5 |
+|---|---|
+| Forced tool call (`tool_choice` "tool") | 400: forced tool use not supported by this model |
+| Structured outputs (`output_config.format`) | 400: compiled grammar too large for this schema |
+| **Schema in the prompt, JSON in `<json>` tags (current default)** | works with any schema size |
+
+The schema is no longer enforced by the API, so the code does it: a reply that
+doesn't parse or doesn't match the schema is sent back once with the exact
+errors. Structured outputs remain available with `--mode structured`.
 
 **Validation (code, not the LLM):**
 1. Every citation must name a real record ID.

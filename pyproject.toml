@@ -11,7 +11,7 @@ dependencies = ["pydantic>=2.6"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
-llm = ["anthropic>=0.40"]
+llm = ["anthropic>=2.12"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

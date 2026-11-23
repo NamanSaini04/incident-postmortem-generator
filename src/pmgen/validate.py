@@ -37,6 +37,7 @@ from .schemas import (
 )
 
 LESSON_AREAS = {"people", "process", "technology", "governance"}
+RECORD_ID = re.compile(r"\bR\d{3,}\b")
 REDACTED = "[unverified indicator removed]"
 
 
@@ -115,6 +116,9 @@ def validate_draft(d: DraftReport, pack: EvidencePack) -> list[Issue]:
         if e not in event_ids:
             issues.append(Issue(where="key_event_ids", problem=f"{e} is not a timeline event"))
     for where, text in _free_text(d):
+        for rid in sorted(set(RECORD_ID.findall(text))):
+            if rid not in pack.records:
+                issues.append(Issue(where=where, problem=f"mentions record {rid}, which does not exist"))
         for t, v in sorted(find_indicators(text)):
             if v not in known:
                 issues.append(Issue(where=where, problem=f"mentions {t.value} {v!r}, which is not in the evidence"))
@@ -159,7 +163,15 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
     known = pack.observables
     log = [f"{i.where}: {i.problem}" for i in issues]
 
+    def readable_ids(text: str) -> str:
+        # Readers can't look up R007; replace with the file and location it stands for.
+        def sub(m):
+            r = pack.records.get(m.group(0))
+            return f"{r.file} {r.locator}" if r else "[unknown record]"
+        return RECORD_ID.sub(sub, text)
+
     def clean(text: str, where: str) -> str:
+        text = readable_ids(text)
         text, removed = _redact(text, known)
         for v in removed:
             log.append(f"{where}: removed unverified indicator {v!r}")
