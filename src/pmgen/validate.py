@@ -32,12 +32,14 @@ from .schemas import (
     EvidenceRef,
     Finding,
     Indicator,
+    KBRef,
     Lesson,
     Postmortem,
 )
 
 LESSON_AREAS = {"people", "process", "technology", "governance"}
 RECORD_ID = re.compile(r"\bR\d{3,}\b")
+KB_ID = re.compile(r"\bK\d{2,}\b")
 FINDING_REF = re.compile(r"^(what_happened|contributing_factors|detection_gaps)\[(\d+)\]$|^root_cause$")
 HEDGE = re.compile(r"\b(likely|probabl[ey]|may|might|possibl[ey]|appears?|suggests?|unconfirmed|not confirmed|"
                    r"unknown|unclear|inferred|believed|consistent with|not (yet )?(established|determined|known)|"
@@ -81,18 +83,31 @@ def _norm(s: str) -> str:
 
 
 def check_citation(c: Citation, pack: EvidencePack) -> str | None:
-    rec = pack.records.get(c.record_id)
-    if rec is None:
-        return f"cites {c.record_id}, which does not exist"
+    rid = c.record_id.strip()
+    if rid.startswith("K"):
+        chunk = pack.kb.get(rid)
+        if chunk is None:
+            return f"cites {rid}, which is not a knowledge-base section given to you"
+        source, where = chunk.text, chunk.label
+    else:
+        rec = pack.records.get(rid)
+        if rec is None:
+            return f"cites {rid}, which does not exist"
+        source, where = rec.text, f"{rec.file} {rec.locator}"
     if not 3 <= len(c.quote.strip()) <= 200:
-        return f"quote for {c.record_id} must be 3-200 characters"
-    if _norm(c.quote) not in _norm(rec.text):
-        return f"quote {c.quote!r} not found in {c.record_id} ({rec.file} {rec.locator})"
+        return f"quote for {rid} must be 3-200 characters"
+    if _norm(c.quote) not in _norm(source):
+        return f"quote {c.quote!r} not found in {rid} ({where})"
     return None
 
 
+def _is_kb(c: Citation) -> bool:
+    return c.record_id.strip().startswith("K")
+
+
 def _valid(cites: list[Citation], pack: EvidencePack) -> list[Citation]:
-    return [c for c in cites if check_citation(c, pack) is None]
+    """Valid citations of incident EVIDENCE (knowledge-base citations never count as evidence)."""
+    return [c for c in cites if not _is_kb(c) and check_citation(c, pack) is None]
 
 
 def _free_text(d: DraftReport) -> list[tuple[str, str]]:
@@ -123,6 +138,9 @@ def validate_draft(d: DraftReport, pack: EvidencePack) -> list[Issue]:
 
     def finding(where: str, f) -> None:
         cites(where, f.citations, f.certainty in (Certainty.CONFIRMED, Certainty.PROBABLE))
+        if any(_is_kb(c) for c in f.citations):
+            issues.append(Issue(where=where, problem="findings are facts about the incident; cite evidence records "
+                                                     "(R...), not the knowledge base (K...)"))
 
     for i, f in enumerate(d.what_happened):
         finding(f"what_happened[{i}]", f)
@@ -154,6 +172,9 @@ def validate_draft(d: DraftReport, pack: EvidencePack) -> list[Issue]:
         for rid in sorted(set(RECORD_ID.findall(text))):
             if rid not in pack.records:
                 issues.append(Issue(where=where, problem=f"mentions record {rid}, which does not exist"))
+        for kid in sorted(set(KB_ID.findall(text))):
+            if kid not in pack.kb:
+                issues.append(Issue(where=where, problem=f"mentions knowledge-base section {kid}, which was not given"))
         for t, v in sorted(find_indicators(text)):
             if v not in known:
                 issues.append(Issue(where=where, problem=f"mentions {t.value} {v!r}, which is not in the evidence"))
@@ -170,6 +191,16 @@ def _refs(cs: list[Citation], pack: EvidencePack) -> list[EvidenceRef]:
     for c in _valid(cs, pack):
         r = pack.records[c.record_id]
         out.append(EvidenceRef(file=r.file, locator=r.locator, excerpt=c.quote.strip()[:500]))
+    return out
+
+
+def _kb_refs(cs: list[Citation], pack: EvidencePack) -> list[KBRef]:
+    out, seen = [], set()
+    for c in cs:
+        if _is_kb(c) and check_citation(c, pack) is None and c.record_id not in seen:
+            seen.add(c.record_id)
+            ch = pack.kb[c.record_id.strip()]
+            out.append(KBRef(doc_id=ch.doc_id, section=ch.section, title=ch.title, excerpt=c.quote.strip()[:300]))
     return out
 
 
@@ -203,7 +234,9 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
         def sub(m):
             r = pack.records.get(m.group(0))
             return f"{r.file} {r.locator}" if r else "[unknown record]"
-        return RECORD_ID.sub(sub, text)
+        text = RECORD_ID.sub(sub, text)
+        return KB_ID.sub(lambda m: (f"{pack.kb[m.group(0)].doc_id} §{pack.kb[m.group(0)].section}"
+                                    if m.group(0) in pack.kb else "[unknown policy section]"), text)
 
     def clean(text: str, where: str) -> str:
         text = readable_ids(text)
@@ -230,7 +263,7 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
     for i, x in enumerate(d.lessons):
         try:
             lessons.append(Lesson(area=x.area.lower(), lesson=clean(x.lesson, f"lessons[{i}]"),
-                                  evidence=_refs(x.citations, pack)))
+                                  evidence=_refs(x.citations, pack), policy_refs=_kb_refs(x.citations, pack)))
         except ValidationError:
             log.append(f"lessons[{i}]: DROPPED, no valid evidence or bad area: {x.lesson[:80]!r}")
 
@@ -241,7 +274,8 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
                 recommendation=clean(a.recommendation, f"corrective_actions[{i}]"), priority=a.priority,
                 reason=clean(a.reason, f"corrective_actions[{i}]"), supporting_evidence=_refs(a.citations, pack),
                 owner_team=a.owner_team, timeframe=a.timeframe,
-                expected_benefit=clean(a.expected_benefit, f"corrective_actions[{i}]")))
+                expected_benefit=clean(a.expected_benefit, f"corrective_actions[{i}]"),
+                policy_refs=_kb_refs(a.citations, pack)))
         except ValidationError:
             log.append(f"corrective_actions[{i}]: DROPPED, no valid evidence: {a.recommendation[:80]!r}")
 
@@ -290,5 +324,6 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
         open_questions=[clean(q, "open_questions") for q in d.open_questions],
         remaining_risks=[clean(r, "remaining_risks") for r in d.remaining_risks],
         timeline=pack.timeline, validation_log=[defang_unknown(x, known) for x in log], model=model,
+        kb_used=[c.key for c in pack.kb.values()],
         generated_at=datetime.now(timezone.utc), file_hashes=pack.file_hashes,
     )

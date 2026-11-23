@@ -64,7 +64,11 @@ Hard rules:
    SEV4 low: suspicious activity with no confirmed compromise.
    How quickly an exposure was closed after it was reported does not lower severity if data was already taken.
 11. Refer to evidence in free text by record ID (e.g. R012) only; code converts these for readers.
-12. Be concise and specific. No filler."""
+12. KNOWLEDGE BASE sections (K01...) are company policies and playbooks, not evidence. In corrective actions and
+   lessons, also cite the K section that the action follows or that was not followed (quote it exactly). Every
+   action and lesson must still cite at least one evidence record (R...) showing why it applies here. Never cite
+   K sections for facts about this incident. Only use K sections that actually apply.
+13. Be concise and specific. No filler."""
 
 
 def build_user_prompt(pack: EvidencePack, issues: list[Issue] | None = None, previous: dict | None = None) -> str:
@@ -139,6 +143,24 @@ def generate(pack: EvidencePack, client: LLMClient, max_retries: int = MAX_RETRI
 # ---------------------------------------------------------------------------
 
 
+class _PolicyCites:
+    """Numbers knowledge-base references [P1], [P2]... for the policy index."""
+
+    def __init__(self):
+        self.index: dict[tuple[str, str], int] = {}
+        self.items: dict[int, object] = {}
+
+    def __call__(self, refs) -> str:
+        nums = []
+        for r in refs:
+            key = (r.doc_id, r.section)
+            if key not in self.index:
+                self.index[key] = len(self.index) + 1
+                self.items[self.index[key]] = r
+            nums.append(self.index[key])
+        return " " + "".join(f"[P{n}]" for n in sorted(set(nums))) if nums else ""
+
+
 class _Cites:
     """Numbers evidence references [E1], [E2]... and builds the evidence index."""
 
@@ -163,6 +185,7 @@ def _esc(s: str) -> str:
 
 def render_markdown(pm: Postmortem) -> str:
     cite = _Cites()
+    pcite = _PolicyCites()
     key = set(pm.key_event_ids)
     L: list[str] = []
     title = re.sub(rf"^\s*{re.escape(pm.incident_id)}\s*[:\-]\s*", "", pm.title)
@@ -223,18 +246,20 @@ def render_markdown(pm: Postmortem) -> str:
         items = [x for x in pm.lessons if x.area == area]
         if items:
             L.append(f"**{area.title()}**")
-            L += [f"- {x.lesson}{cite(x.evidence)}" for x in items]
+            L += [f"- {x.lesson}{cite(x.evidence)}{pcite(x.policy_refs)}" for x in items]
             L.append("")
     if not pm.lessons:
         L += ["_None validated._", ""]
 
     L += ["## 8. Corrective actions", ""]
     if pm.corrective_actions:
-        L += ["| Priority | Action | Why | Owner | Timeframe | Expected benefit |", "|---|---|---|---|---|---|"]
+        L += ["| Priority | Action | Why | Policy | Owner | Timeframe | Expected benefit |",
+              "|---|---|---|---|---|---|---|"]
         order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         for a in sorted(pm.corrective_actions, key=lambda a: order[a.priority.value]):
             L.append(f"| {a.priority.value} | {_esc(a.recommendation)} | {_esc(a.reason)}{cite(a.supporting_evidence)} "
-                     f"| {_esc(a.owner_team)} | {_esc(a.timeframe)} | {_esc(a.expected_benefit)} |")
+                     f"|{pcite(a.policy_refs) or ' -'} | {_esc(a.owner_team)} | {_esc(a.timeframe)} "
+                     f"| {_esc(a.expected_benefit)} |")
     else:
         L.append("_None validated._")
     L.append("")
@@ -253,6 +278,15 @@ def render_markdown(pm: Postmortem) -> str:
     L += ["## Evidence index", "", "| Ref | File | Location | Quote |", "|---|---|---|---|"]
     for (file, loc), n in sorted(cite.index.items(), key=lambda kv: kv[1]):
         L.append(f"| E{n} | {file} | {loc} | {_esc(cite.quotes[n][:120])} |")
+    if pcite.index:
+        L += ["", "## Policy and playbook references", "",
+              "Company knowledge base (synthetic). These support recommendations, not facts about the incident.", "",
+              "| Ref | Section | Quote |", "|---|---|---|"]
+        for (_, _), n in sorted(pcite.index.items(), key=lambda kv: kv[1]):
+            r = pcite.items[n]
+            L.append(f"| P{n} | {r.doc_id} §{r.section} {_esc(r.title)} | {_esc(r.excerpt[:120])} |")
+    if pm.kb_used:
+        L += ["", f"_Knowledge-base sections given to the model: {', '.join(pm.kb_used)}_"]
     L += ["", "**Evidence file hashes (SHA-256)**", ""]
     L += [f"- `{f}`: `{h}`" for f, h in sorted(pm.file_hashes.items())]
     L.append("")
@@ -265,17 +299,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=Path("reports"))
     ap.add_argument("--model", default=None)
     ap.add_argument("--dry-run", action="store_true", help="build the prompt only; no API call")
+    ap.add_argument("--no-rag", action="store_true", help="do not give the model knowledge-base sections (A/B testing)")
     ap.add_argument("--mode", choices=["prompt", "structured"], default=None,
                     help="how JSON is obtained (default: prompt; structured may fail on large schemas)")
     args = ap.parse_args(argv)
 
-    pack = build_pack(ingest_folder(args.incident_folder))
+    pack = build_pack(ingest_folder(args.incident_folder), use_kb=not args.no_rag)
     prompt = build_user_prompt(pack)
     if args.dry_run:
         from .llm import schema_instructions
         prompt = prompt + "\n\n" + schema_instructions(DraftReport.model_json_schema())
         print(prompt)
-        print(f"\n--- {len(pack.records)} records, {len(pack.timeline.events)} events, "
+        print(f"\n--- {len(pack.records)} records, {len(pack.timeline.events)} events, {len(pack.kb)} KB sections, "
               f"~{(len(SYSTEM_PROMPT) + len(prompt)) // 4} input tokens (rough estimate) ---")
         return 0
     try:
@@ -290,9 +325,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 1
     args.out.mkdir(parents=True, exist_ok=True)
-    md = args.out / f"{pm.incident_id}_postmortem.md"
+    suffix = "_norag" if args.no_rag else ""
+    md = args.out / f"{pm.incident_id}_postmortem{suffix}.md"
     md.write_text(render_markdown(pm), encoding="utf-8")
-    (args.out / f"{pm.incident_id}_postmortem.json").write_text(pm.model_dump_json(indent=2), encoding="utf-8")
+    (args.out / f"{pm.incident_id}_postmortem{suffix}.json").write_text(pm.model_dump_json(indent=2), encoding="utf-8")
     print(f"wrote {md}")
     usage = getattr(client, "last_usage", None)
     if usage:

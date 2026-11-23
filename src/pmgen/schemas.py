@@ -238,6 +238,15 @@ class Finding(BaseModel):
         return self
 
 
+class KBRef(BaseModel):
+    """A citation of a company policy/playbook section (knowledge base), never of incident evidence."""
+
+    doc_id: str
+    section: str
+    title: str
+    excerpt: str
+
+
 class CorrectiveAction(BaseModel):
     recommendation: str = Field(min_length=5)
     priority: Priority
@@ -246,6 +255,7 @@ class CorrectiveAction(BaseModel):
     owner_team: str
     timeframe: str
     expected_benefit: str
+    policy_refs: list[KBRef] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -290,6 +300,9 @@ class GroundTruth(BaseModel):
     attack: list[GroundTruthAttack]
     root_cause: Finding
     contributing_factors: list[Finding]
+    expected_kb_sections: list[str] = Field(
+        default_factory=list,
+        description='Knowledge-base sections a good report should rely on, e.g. "POL-07#3". Written before retrieval was run.')
     must_not_claim: list[str] = Field(
         default_factory=list,
         description="Statements a correct report must NOT present as confirmed (hallucination traps).",
@@ -314,7 +327,7 @@ class GroundTruth(BaseModel):
 
 
 class Citation(BaseModel):
-    record_id: str = Field(description="ID of an evidence record from the pack, e.g. R007")
+    record_id: str = Field(description="ID of an evidence record (R007) or a knowledge-base section (K03)")
     quote: str = Field(description="Exact text copied from that record (3-200 chars) that supports the claim")
 
 
@@ -375,6 +388,7 @@ class Lesson(BaseModel):
     area: str = Field(pattern=r"^(people|process|technology|governance)$")
     lesson: str
     evidence: list[EvidenceRef] = Field(min_length=1)
+    policy_refs: list[KBRef] = Field(default_factory=list)
 
 
 class Indicator(BaseModel):
@@ -403,6 +417,7 @@ class Postmortem(BaseModel):
     remaining_risks: list[str]
     timeline: Timeline
     validation_log: list[str]
+    kb_used: list[str] = Field(default_factory=list, description="Knowledge-base sections given to the model")
     model: str
     generated_at: datetime
     file_hashes: dict[str, str]

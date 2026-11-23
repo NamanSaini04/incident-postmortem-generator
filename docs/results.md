@@ -133,3 +133,38 @@ unaffected (certainty is not scored).
 - **One run each.** Run-to-run variation is not yet measured.
 - **Six incidents, all synthetic.** These results show the pipeline behaves as
   designed on these cases, not that it is accurate on real incidents.
+
+## Phase 6: knowledge base (RAG)
+
+### Retrieval (no LLM, free to run: `python -m pmgen.kb --eval`)
+
+Expected knowledge-base sections per incident were written into the ground
+truth **before** retrieval was run. Measured mean recall over 6 incidents:
+
+| Setting | Mean recall |
+|---|---|
+| BM25, top 6 sections | 76% |
+| BM25, top 6, max 2 sections per document | 72% |
+| BM25, top 8, max 2 per document | 81% |
+| **BM25, top 8 (chosen)** | **84.7%** |
+
+The per-document cap was expected to help (one playbook filled 4 of 6 slots for
+INC-001) and made things worse, so it was dropped. Top-8 was chosen on these
+same 6 incidents, so 84.7% is slightly optimistic. Still missed at top 8:
+INC-001 `POL-12#3`, INC-003 `PB-05#2`, INC-006 `POL-12#2`.
+
+### A/B test plan (written before running)
+
+- Same prompt, same model, each of the 6 incidents run once **without** the
+  knowledge base (`--no-rag`) and once **with** it: `bash scripts/ab_test.sh`.
+- Compared: category, severity, root cause, contributing factors, indicators,
+  claims removed, **policy recall** (expected sections cited in actions or
+  lessons) and **actions with a policy citation**. Traps checked by hand in all
+  12 reports.
+- What counts as RAG helping: higher policy recall and policy-backed actions
+  **without** any drop in the other scores or any new trap failure.
+- Not held out: INC-004–006 were already run once. Both arms are equally
+  affected, so the comparison is fair, but absolute scores are not a fresh test.
+- Expected cost at $2 / $10 per million tokens: about $1–1.50 for all 12 runs.
+
+A/B results: _pending_.

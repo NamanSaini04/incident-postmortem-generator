@@ -4,54 +4,204 @@
   "category": "credential_compromise",
   "severity": "SEV2",
   "timeline": [
-    {"key": "phish_delivered", "timestamp": "2026-10-06T09:14:02Z", "description": "Phishing email delivered to j.patel", "status": "confirmed",
-     "source": {"file": "email_gateway.csv", "locator": "row 1", "excerpt": "MSG-88121"}},
-    {"key": "link_clicked", "timestamp": "2026-10-06T09:18:40Z", "description": "j.patel opened phishing link", "status": "confirmed",
-     "source": {"file": "proxy_logs.csv", "locator": "row 1", "excerpt": "login-micros0ft.test/reset?u=jpatel"}},
-    {"key": "creds_submitted", "timestamp": "2026-10-06T09:19:02Z", "description": "Credentials posted to phishing site", "status": "confirmed",
-     "source": {"file": "proxy_logs.csv", "locator": "row 2", "excerpt": "login-micros0ft.test/submit"}},
-    {"key": "attacker_login", "timestamp": "2026-10-06T09:22:15Z", "description": "Successful sign-in from 203.0.113.45 without MFA", "status": "confirmed",
-     "source": {"file": "auth_logs.csv", "locator": "row 2", "excerpt": "203.0.113.45"}},
-    {"key": "impossible_travel_alert", "timestamp": "2026-10-06T09:24:00Z", "description": "Impossible travel alert raised", "status": "confirmed",
-     "source": {"file": "siem_alerts.json", "locator": "alerts[0]", "excerpt": "AL-5521"}},
-    {"key": "forwarding_rule_created", "timestamp": "2026-10-06T09:31:10Z", "description": "External forwarding inbox rule created", "status": "confirmed",
-     "source": {"file": "siem_alerts.json", "locator": "alerts[1]", "excerpt": "AL-5527"}},
-    {"key": "triage_started", "timestamp": "2026-10-06T09:52:00Z", "description": "Analyst began triage", "status": "confirmed",
-     "source": {"file": "analyst_notes.txt", "locator": "line 3", "excerpt": "09:52 Picked up AL-5527"}},
-    {"key": "sessions_revoked", "timestamp": "2026-10-06T09:58:00Z", "description": "Sessions revoked (containment)", "status": "confirmed",
-     "source": {"file": "analyst_notes.txt", "locator": "line 4", "excerpt": "Revoked all active sessions"}},
-    {"key": "password_reset", "timestamp": "2026-10-06T10:05:00Z", "description": "Password reset", "status": "confirmed",
-     "source": {"file": "analyst_notes.txt", "locator": "line 5", "excerpt": "Reset password"}},
-    {"key": "rule_removed", "timestamp": "2026-10-06T10:12:00Z", "description": "Forwarding rule removed", "status": "confirmed",
-     "source": {"file": "analyst_notes.txt", "locator": "line 6", "excerpt": "Removed inbox rule"}},
-    {"key": "phish_purged", "timestamp": "2026-10-06T10:40:00Z", "description": "Phishing email purged from 14 mailboxes", "status": "confirmed",
-     "source": {"file": "analyst_notes.txt", "locator": "line 7", "excerpt": "Purged phishing message"}}
+    {
+      "key": "phish_delivered",
+      "timestamp": "2026-10-06T09:14:02Z",
+      "description": "Phishing email delivered to j.patel",
+      "status": "confirmed",
+      "source": {
+        "file": "email_gateway.csv",
+        "locator": "row 1",
+        "excerpt": "MSG-88121"
+      }
+    },
+    {
+      "key": "link_clicked",
+      "timestamp": "2026-10-06T09:18:40Z",
+      "description": "j.patel opened phishing link",
+      "status": "confirmed",
+      "source": {
+        "file": "proxy_logs.csv",
+        "locator": "row 1",
+        "excerpt": "login-micros0ft.test/reset?u=jpatel"
+      }
+    },
+    {
+      "key": "creds_submitted",
+      "timestamp": "2026-10-06T09:19:02Z",
+      "description": "Credentials posted to phishing site",
+      "status": "confirmed",
+      "source": {
+        "file": "proxy_logs.csv",
+        "locator": "row 2",
+        "excerpt": "login-micros0ft.test/submit"
+      }
+    },
+    {
+      "key": "attacker_login",
+      "timestamp": "2026-10-06T09:22:15Z",
+      "description": "Successful sign-in from 203.0.113.45 without MFA",
+      "status": "confirmed",
+      "source": {
+        "file": "auth_logs.csv",
+        "locator": "row 2",
+        "excerpt": "203.0.113.45"
+      }
+    },
+    {
+      "key": "impossible_travel_alert",
+      "timestamp": "2026-10-06T09:24:00Z",
+      "description": "Impossible travel alert raised",
+      "status": "confirmed",
+      "source": {
+        "file": "siem_alerts.json",
+        "locator": "alerts[0]",
+        "excerpt": "AL-5521"
+      }
+    },
+    {
+      "key": "forwarding_rule_created",
+      "timestamp": "2026-10-06T09:31:10Z",
+      "description": "External forwarding inbox rule created",
+      "status": "confirmed",
+      "source": {
+        "file": "siem_alerts.json",
+        "locator": "alerts[1]",
+        "excerpt": "AL-5527"
+      }
+    },
+    {
+      "key": "triage_started",
+      "timestamp": "2026-10-06T09:52:00Z",
+      "description": "Analyst began triage",
+      "status": "confirmed",
+      "source": {
+        "file": "analyst_notes.txt",
+        "locator": "line 3",
+        "excerpt": "09:52 Picked up AL-5527"
+      }
+    },
+    {
+      "key": "sessions_revoked",
+      "timestamp": "2026-10-06T09:58:00Z",
+      "description": "Sessions revoked (containment)",
+      "status": "confirmed",
+      "source": {
+        "file": "analyst_notes.txt",
+        "locator": "line 4",
+        "excerpt": "Revoked all active sessions"
+      }
+    },
+    {
+      "key": "password_reset",
+      "timestamp": "2026-10-06T10:05:00Z",
+      "description": "Password reset",
+      "status": "confirmed",
+      "source": {
+        "file": "analyst_notes.txt",
+        "locator": "line 5",
+        "excerpt": "Reset password"
+      }
+    },
+    {
+      "key": "rule_removed",
+      "timestamp": "2026-10-06T10:12:00Z",
+      "description": "Forwarding rule removed",
+      "status": "confirmed",
+      "source": {
+        "file": "analyst_notes.txt",
+        "locator": "line 6",
+        "excerpt": "Removed inbox rule"
+      }
+    },
+    {
+      "key": "phish_purged",
+      "timestamp": "2026-10-06T10:40:00Z",
+      "description": "Phishing email purged from 14 mailboxes",
+      "status": "confirmed",
+      "source": {
+        "file": "analyst_notes.txt",
+        "locator": "line 7",
+        "excerpt": "Purged phishing message"
+      }
+    }
   ],
   "iocs": {
-    "ip": ["203.0.113.45"],
-    "domain": ["micros0ft-helpdesk.test", "login-micros0ft.test", "exfil-drop.test"],
-    "url": ["https://login-micros0ft.test/reset?u=jpatel", "https://login-micros0ft.test/reset?u=akhan", "https://login-micros0ft.test/submit"],
-    "email": ["it-support@micros0ft-helpdesk.test", "mailbox-sync@exfil-drop.test"]
+    "ip": [
+      "203.0.113.45"
+    ],
+    "domain": [
+      "micros0ft-helpdesk.test",
+      "login-micros0ft.test",
+      "exfil-drop.test"
+    ],
+    "url": [
+      "https://login-micros0ft.test/reset?u=jpatel",
+      "https://login-micros0ft.test/reset?u=akhan",
+      "https://login-micros0ft.test/submit"
+    ],
+    "email": [
+      "it-support@micros0ft-helpdesk.test",
+      "mailbox-sync@exfil-drop.test"
+    ]
   },
   "attack": [
-    {"technique_id": "T1566.002", "technique_name": "Phishing: Spearphishing Link"},
-    {"technique_id": "T1078.004", "technique_name": "Valid Accounts: Cloud Accounts"},
-    {"technique_id": "T1114.003", "technique_name": "Email Collection: Email Forwarding Rule"}
+    {
+      "technique_id": "T1566.002",
+      "technique_name": "Phishing: Spearphishing Link"
+    },
+    {
+      "technique_id": "T1078.004",
+      "technique_name": "Valid Accounts: Cloud Accounts"
+    },
+    {
+      "technique_id": "T1114.003",
+      "technique_name": "Email Collection: Email Forwarding Rule"
+    }
   ],
   "root_cause": {
     "statement": "MFA was not enforced for the compromised account because a conditional access exclusion from the 2025 migration was never removed.",
     "certainty": "confirmed",
-    "evidence": [{"file": "analyst_notes.txt", "locator": "line 8", "excerpt": "MFA was not enforced"}]
+    "evidence": [
+      {
+        "file": "analyst_notes.txt",
+        "locator": "line 8",
+        "excerpt": "MFA was not enforced"
+      }
+    ]
   },
   "contributing_factors": [
-    {"statement": "Email gateway rated a message from a 2-day-old look-alike domain as clean.", "certainty": "confirmed",
-     "evidence": [{"file": "analyst_notes.txt", "locator": "line 9", "excerpt": "rated the phishing message clean"}]},
-    {"statement": "The impossible travel alert was not triaged; response began 28 minutes after the first alert.", "certainty": "confirmed",
-     "evidence": [{"file": "analyst_notes.txt", "locator": "line 3", "excerpt": "AL-5521 had not been triaged yet"}]}
+    {
+      "statement": "Email gateway rated a message from a 2-day-old look-alike domain as clean.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 9",
+          "excerpt": "rated the phishing message clean"
+        }
+      ]
+    },
+    {
+      "statement": "The impossible travel alert was not triaged; response began 28 minutes after the first alert.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 3",
+          "excerpt": "AL-5521 had not been triaged yet"
+        }
+      ]
+    }
   ],
   "must_not_claim": [
     "The attacker accessed SharePoint",
     "198.51.100.7 is malicious",
     "a.khan's account was compromised"
+  ],
+  "expected_kb_sections": [
+    "POL-07#3",
+    "PB-01#3",
+    "POL-12#3"
   ]
 }

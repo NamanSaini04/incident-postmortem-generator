@@ -4,58 +4,214 @@
   "category": "ransomware",
   "severity": "SEV1",
   "timeline": [
-    {"key": "rdp_bruteforce", "timestamp": "2026-11-10T22:41:10Z", "description": "RDP brute force against svc.backup", "status": "confirmed",
-     "source": {"file": "windows_security.json", "locator": "events[0]", "excerpt": "312 failed RDP logons"}},
-    {"key": "rdp_login", "timestamp": "2026-11-10T22:58:53Z", "description": "Successful RDP logon from 203.0.113.66", "status": "confirmed",
-     "source": {"file": "windows_security.json", "locator": "events[1]", "excerpt": "successful remote interactive logon"}},
-    {"key": "admin_privileges", "timestamp": "2026-11-10T23:04:15Z", "description": "Special privileges assigned", "status": "confirmed",
-     "source": {"file": "windows_security.json", "locator": "events[2]", "excerpt": "special privileges assigned"}},
-    {"key": "remote_service", "timestamp": "2026-11-10T23:31:40Z", "description": "PsExec service installed on FS-02", "status": "confirmed",
-     "source": {"file": "windows_security.json", "locator": "events[3]", "excerpt": "PSEXESVC.exe"}},
-    {"key": "shadow_copies_deleted", "timestamp": "2026-11-10T23:33:02Z", "description": "Shadow copies deleted", "status": "confirmed",
-     "source": {"file": "windows_security.json", "locator": "events[4]", "excerpt": "delete shadows"}},
-    {"key": "encryptor_run", "timestamp": "2026-11-10T23:34:10Z", "description": "locker.exe executed on FS-02", "status": "confirmed",
-     "source": {"file": "windows_security.json", "locator": "events[5]", "excerpt": "locker.exe"}},
-    {"key": "mass_rename_alert", "timestamp": "2026-11-10T23:36:40Z", "description": "Mass rename alert", "status": "confirmed",
-     "source": {"file": "edr_alerts.csv", "locator": "row 2", "excerpt": "Mass file rename"}},
-    {"key": "paged", "timestamp": "2026-11-10T23:52:00Z", "description": "On-call paged", "status": "confirmed",
-     "source": {"file": "ir_notes.txt", "locator": "line 3", "excerpt": "On-call paged"}},
-    {"key": "isolated", "timestamp": "2026-11-10T23:58:00Z", "description": "Hosts isolated", "status": "confirmed",
-     "source": {"file": "ir_notes.txt", "locator": "line 4", "excerpt": "Isolated FS-02 and JMP-01"}},
-    {"key": "account_disabled", "timestamp": "2026-11-11T01:20:00Z", "description": "Account disabled, IP blocked", "status": "confirmed",
-     "source": {"file": "ir_notes.txt", "locator": "line 5", "excerpt": "Disabled svc.backup"}},
-    {"key": "restore_started", "timestamp": "2026-11-11T09:40:00Z", "description": "Restore from offline backup", "status": "confirmed",
-     "source": {"file": "ir_notes.txt", "locator": "line 6", "excerpt": "Restore of FS-02"}}
+    {
+      "key": "rdp_bruteforce",
+      "timestamp": "2026-11-10T22:41:10Z",
+      "description": "RDP brute force against svc.backup",
+      "status": "confirmed",
+      "source": {
+        "file": "windows_security.json",
+        "locator": "events[0]",
+        "excerpt": "312 failed RDP logons"
+      }
+    },
+    {
+      "key": "rdp_login",
+      "timestamp": "2026-11-10T22:58:53Z",
+      "description": "Successful RDP logon from 203.0.113.66",
+      "status": "confirmed",
+      "source": {
+        "file": "windows_security.json",
+        "locator": "events[1]",
+        "excerpt": "successful remote interactive logon"
+      }
+    },
+    {
+      "key": "admin_privileges",
+      "timestamp": "2026-11-10T23:04:15Z",
+      "description": "Special privileges assigned",
+      "status": "confirmed",
+      "source": {
+        "file": "windows_security.json",
+        "locator": "events[2]",
+        "excerpt": "special privileges assigned"
+      }
+    },
+    {
+      "key": "remote_service",
+      "timestamp": "2026-11-10T23:31:40Z",
+      "description": "PsExec service installed on FS-02",
+      "status": "confirmed",
+      "source": {
+        "file": "windows_security.json",
+        "locator": "events[3]",
+        "excerpt": "PSEXESVC.exe"
+      }
+    },
+    {
+      "key": "shadow_copies_deleted",
+      "timestamp": "2026-11-10T23:33:02Z",
+      "description": "Shadow copies deleted",
+      "status": "confirmed",
+      "source": {
+        "file": "windows_security.json",
+        "locator": "events[4]",
+        "excerpt": "delete shadows"
+      }
+    },
+    {
+      "key": "encryptor_run",
+      "timestamp": "2026-11-10T23:34:10Z",
+      "description": "locker.exe executed on FS-02",
+      "status": "confirmed",
+      "source": {
+        "file": "windows_security.json",
+        "locator": "events[5]",
+        "excerpt": "locker.exe"
+      }
+    },
+    {
+      "key": "mass_rename_alert",
+      "timestamp": "2026-11-10T23:36:40Z",
+      "description": "Mass rename alert",
+      "status": "confirmed",
+      "source": {
+        "file": "edr_alerts.csv",
+        "locator": "row 2",
+        "excerpt": "Mass file rename"
+      }
+    },
+    {
+      "key": "paged",
+      "timestamp": "2026-11-10T23:52:00Z",
+      "description": "On-call paged",
+      "status": "confirmed",
+      "source": {
+        "file": "ir_notes.txt",
+        "locator": "line 3",
+        "excerpt": "On-call paged"
+      }
+    },
+    {
+      "key": "isolated",
+      "timestamp": "2026-11-10T23:58:00Z",
+      "description": "Hosts isolated",
+      "status": "confirmed",
+      "source": {
+        "file": "ir_notes.txt",
+        "locator": "line 4",
+        "excerpt": "Isolated FS-02 and JMP-01"
+      }
+    },
+    {
+      "key": "account_disabled",
+      "timestamp": "2026-11-11T01:20:00Z",
+      "description": "Account disabled, IP blocked",
+      "status": "confirmed",
+      "source": {
+        "file": "ir_notes.txt",
+        "locator": "line 5",
+        "excerpt": "Disabled svc.backup"
+      }
+    },
+    {
+      "key": "restore_started",
+      "timestamp": "2026-11-11T09:40:00Z",
+      "description": "Restore from offline backup",
+      "status": "confirmed",
+      "source": {
+        "file": "ir_notes.txt",
+        "locator": "line 6",
+        "excerpt": "Restore of FS-02"
+      }
+    }
   ],
   "iocs": {
-    "ip": ["203.0.113.66"],
-    "sha256": ["e48f58a29d9e57c5e23d873afcd37bb3487369ff1ace9ee00dd2dd1401f820a2"],
-    "email": ["decrypt-desk@lockd-support.test"],
-    "domain": ["lockd-support.test"]
+    "ip": [
+      "203.0.113.66"
+    ],
+    "sha256": [
+      "e48f58a29d9e57c5e23d873afcd37bb3487369ff1ace9ee00dd2dd1401f820a2"
+    ],
+    "email": [
+      "decrypt-desk@lockd-support.test"
+    ],
+    "domain": [
+      "lockd-support.test"
+    ]
   },
   "attack": [
-    {"technique_id": "T1110", "technique_name": "Brute Force"},
-    {"technique_id": "T1133", "technique_name": "External Remote Services"},
-    {"technique_id": "T1569.002", "technique_name": "System Services: Service Execution"},
-    {"technique_id": "T1490", "technique_name": "Inhibit System Recovery"},
-    {"technique_id": "T1486", "technique_name": "Data Encrypted for Impact"}
+    {
+      "technique_id": "T1110",
+      "technique_name": "Brute Force"
+    },
+    {
+      "technique_id": "T1133",
+      "technique_name": "External Remote Services"
+    },
+    {
+      "technique_id": "T1569.002",
+      "technique_name": "System Services: Service Execution"
+    },
+    {
+      "technique_id": "T1490",
+      "technique_name": "Inhibit System Recovery"
+    },
+    {
+      "technique_id": "T1486",
+      "technique_name": "Data Encrypted for Impact"
+    }
   ],
   "root_cause": {
     "statement": "RDP on JMP-01 was left open to the internet after a temporary exception, letting an attacker brute-force a weak, non-MFA service account.",
     "certainty": "confirmed",
-    "evidence": [{"file": "ir_notes.txt", "locator": "line 7", "excerpt": "opened to the internet in 2025"},
-                 {"file": "ir_notes.txt", "locator": "line 8", "excerpt": "no MFA on RDP"}]
+    "evidence": [
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 7",
+        "excerpt": "opened to the internet in 2025"
+      },
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 8",
+        "excerpt": "no MFA on RDP"
+      }
+    ]
   },
   "contributing_factors": [
-    {"statement": "svc.backup had an old password, no MFA and admin rights on FS-02.", "certainty": "confirmed",
-     "evidence": [{"file": "ir_notes.txt", "locator": "line 8", "excerpt": "password last changed in 2022"}]},
-    {"statement": "The high-severity shadow-copy alert did not page anyone.", "certainty": "confirmed",
-     "evidence": [{"file": "ir_notes.txt", "locator": "line 9", "excerpt": "routed to a queue"}]}
+    {
+      "statement": "svc.backup had an old password, no MFA and admin rights on FS-02.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 8",
+          "excerpt": "password last changed in 2022"
+        }
+      ]
+    },
+    {
+      "statement": "The high-severity shadow-copy alert did not page anyone.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "routed to a queue"
+        }
+      ]
+    }
   ],
   "must_not_claim": [
     "Data was exfiltrated (the ransom note's claim is unverified)",
     "The ransom was paid",
     "The attacker reached servers other than JMP-01 and FS-02",
     "The attack was carried out by a named threat group"
+  ],
+  "expected_kb_sections": [
+    "POL-15#4",
+    "POL-07#4",
+    "POL-12#2",
+    "PB-02#4"
   ]
 }

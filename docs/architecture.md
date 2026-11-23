@@ -43,6 +43,7 @@ flowchart TD
 | `timeline.py` — order, date-fill, merge duplicates | 4 | Done |
 | `evidence_pack.py`, `llm.py`, `postmortem.py` — LLM draft + Markdown report | 5 | Done |
 | `validate.py` — claim vs evidence checks | 5 (basic), 9 (full) | Basic done |
+| `kb.py`, `abtest.py` — policy retrieval and A/B summary | 6 | Done |
 | Markdown report (5), PDF (11) | 5, 11 | Markdown done |
 | `evaluate.py` + `variants.py` — timeline scoring on clean and messy data | 4 (basic), 12 (full) | Basic done |
 
@@ -167,6 +168,29 @@ with the hallucination-trap list (manual for now) and addressed in Phase 9.
 root cause cites the right record, contributing-factor recall, indicator
 precision and recall, number of claims removed. Tested only with a scripted
 fake LLM so far; real-model results come from running it.
+
+## Knowledge base / RAG (Phase 6)
+
+- **Documents:** 13 synthetic company documents in `data/knowledge_base/`:
+  policies (identity and MFA, alerting, change and exceptions, data handling,
+  endpoint hardening), five playbooks, a severity matrix and two past incident
+  reviews.
+- **Chunking:** one chunk per `## §n` section, so each chunk is one rule and is
+  citable as `POL-07 §3`. 53 sections in total.
+- **Retrieval:** BM25 keyword ranking (no dependencies), top 8. The query is
+  built from the notes and descriptive log fields (alert names, actions, event
+  names); IPs, hashes and names are left out because policies never contain them.
+- **Why not embeddings + a vector DB:** at 53 short, term-heavy sections, BM25
+  is a strong baseline and a vector database adds setup with no measured gain.
+  Embeddings should replace it only if they beat it on `python -m pmgen.kb --eval`.
+- **Leak guard:** a test fails if any incident's names, hosts, IPs, domains or
+  hashes appear in the knowledge base.
+- **Citation rules:** knowledge-base sections (`K01`...) may support corrective
+  actions and lessons only. Findings that cite them are rejected. An action that
+  cites only policy, with no incident evidence, is dropped. Policy quotes are
+  checked against the section text, like evidence quotes.
+- **Report:** a "Policy" column in corrective actions and a "Policy and playbook
+  references" index, separate from the evidence index.
 
 ## Safety rules enforced in code (not just in prompts)
 

@@ -136,7 +136,17 @@ class ReportScore(BaseModel):
     indicator_recall: float        # share of GT IOCs listed as indicators
     indicator_precision: float | None  # share of listed indicators that are GT IOCs; None if none listed
     claims_removed: int            # items dropped by the validator
+    policy_recall: float | None    # share of expected KB sections cited in actions/lessons (None if none expected)
+    actions_with_policy: float | None  # share of corrective actions citing at least one KB section
     must_not_claim: list[str]      # for MANUAL check: these must not appear as confirmed facts
+
+
+def _policy_recall(gt: GroundTruth, pm) -> float | None:
+    if not gt.expected_kb_sections:
+        return None
+    cited = {f"{r.doc_id}#{r.section}" for a in pm.corrective_actions for r in a.policy_refs}
+    cited |= {f"{r.doc_id}#{r.section}" for x in pm.lessons for r in x.policy_refs}
+    return sum(e in cited for e in gt.expected_kb_sections) / len(gt.expected_kb_sections)
 
 
 def score_report(gt: GroundTruth, pm) -> ReportScore:
@@ -166,5 +176,8 @@ def score_report(gt: GroundTruth, pm) -> ReportScore:
         indicator_recall=len(listed & gt_iocs) / len(gt_iocs) if gt_iocs else 1.0,
         indicator_precision=len(listed & gt_iocs) / len(listed) if listed else None,
         claims_removed=sum("DROPPED" in x or "removed unverified" in x for x in pm.validation_log),
+        policy_recall=_policy_recall(gt, pm),
+        actions_with_policy=(sum(bool(a.policy_refs) for a in pm.corrective_actions) / len(pm.corrective_actions)
+                             if pm.corrective_actions else None),
         must_not_claim=gt.must_not_claim,
     )

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .extract import extract_bundle
+from .kb import Chunk, retrieve
 from .schemas import EntityType, EvidenceBundle, ExtractedEntity, Timeline
 from .timeline import build_timeline
 
@@ -32,6 +33,7 @@ class EvidencePack:
     timeline: Timeline
     entities: list[ExtractedEntity]
     file_hashes: dict[str, str] = field(default_factory=dict)
+    kb: dict[str, Chunk] = field(default_factory=dict)  # K01 -> section
 
     @property
     def observables(self) -> dict[str, EntityType]:
@@ -55,10 +57,14 @@ class EvidencePack:
             by_type.setdefault(t, []).append(v)
         for t, vals in by_type.items():
             lines.append(f"{t.value}: {', '.join(vals)}")
+        if self.kb:
+            lines += ["", "KNOWLEDGE BASE: company policies and playbooks (cite by ID in actions and lessons only):"]
+            for kid, c in self.kb.items():
+                lines.append(f"[{kid}] {c.label}: {c.text}")
         return "\n".join(lines)
 
 
-def build_pack(bundle: EvidenceBundle) -> EvidencePack:
+def build_pack(bundle: EvidenceBundle, use_kb: bool = True, kb_chunks: list[Chunk] | None = None) -> EvidencePack:
     entities = extract_bundle(bundle)
     timeline = build_timeline(bundle, entities)
     records: dict[str, PackRecord] = {}
@@ -70,8 +76,9 @@ def build_pack(bundle: EvidenceBundle) -> EvidencePack:
             rid = f"R{n:03d}"
             records[rid] = PackRecord(rid, doc.file_name, rec.locator, rec.text)
             by_location[(doc.file_name, rec.locator)] = rid
+    kb = {f"K{i:02d}": c for i, c in enumerate(retrieve(bundle, kb_chunks), start=1)} if use_kb else {}
     return EvidencePack(
         incident_id=bundle.incident_id, records=records, by_location=by_location,
         timeline=timeline, entities=entities,
-        file_hashes={d.file_name: d.sha256 for d in bundle.documents},
+        file_hashes={d.file_name: d.sha256 for d in bundle.documents}, kb=kb,
     )
