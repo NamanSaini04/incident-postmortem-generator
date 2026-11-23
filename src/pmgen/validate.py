@@ -23,8 +23,13 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, ValidationError
 
 from .evidence_pack import EvidencePack
+from .attack import check_id as check_attack_id
+from .attack import full_name as attack_name
+from .attack import load_catalog as attack_catalog
+from .attack import lookup as attack_lookup
 from .extract import find_indicators
 from .schemas import (
+    AttackMapping,
     Certainty,
     Citation,
     CorrectiveAction,
@@ -120,6 +125,7 @@ def _free_text(d: DraftReport) -> list[tuple[str, str]]:
     out += [(f"lessons[{i}]", x.lesson) for i, x in enumerate(d.lessons)]
     for i, a in enumerate(d.corrective_actions):
         out += [(f"corrective_actions[{i}]", f"{a.recommendation} {a.reason} {a.expected_benefit}")]
+    out += [(f"attack[{i}]", a.rationale) for i, a in enumerate(d.attack)]
     out += [(f"open_questions[{i}]", q) for i, q in enumerate(d.open_questions)]
     out += [(f"remaining_risks[{i}]", r) for i, r in enumerate(d.remaining_risks)]
     return out
@@ -159,6 +165,24 @@ def validate_draft(d: DraftReport, pack: EvidencePack) -> list[Issue]:
             issues.append(Issue(where=f"lessons[{i}]", problem=f"area {x.area!r} must be one of {sorted(LESSON_AREAS)}"))
     for i, a in enumerate(d.corrective_actions):
         cites(f"corrective_actions[{i}]", a.citations, True)
+
+    seen_ids: set[str] = set()
+    for i, a in enumerate(d.attack):
+        where = f"attack[{i}]"
+        err = check_attack_id(a.technique_id)
+        if err:
+            issues.append(Issue(where=where, problem=err))
+        if a.certainty not in (Certainty.CONFIRMED, Certainty.PROBABLE):
+            issues.append(Issue(where=where, problem=f"{a.technique_id} is {a.certainty.value}; only map techniques "
+                                                     "the evidence shows (confirmed or probable)"))
+        cites(where, a.citations, True)
+        if any(_is_kb(c) for c in a.citations):
+            issues.append(Issue(where=where, problem="ATT&CK mappings describe this incident; cite evidence (R...), "
+                                                     "not the knowledge base"))
+        tid = a.technique_id.strip().upper()
+        if tid in seen_ids:
+            issues.append(Issue(where=where, problem=f"{tid} is listed twice"))
+        seen_ids.add(tid)
 
     known = pack.observables
     for v in d.indicators:
@@ -291,6 +315,29 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
                                                                excerpt=e.source.excerpt)))
     event_ids = {e.event_id for e in pack.timeline.events}
 
+    attack: list[AttackMapping] = []
+    taken: set[str] = set()
+    for i, a in enumerate(d.attack):
+        where = f"attack[{i}]"
+        tid = a.technique_id.strip().upper()
+        err = check_attack_id(tid)
+        refs = _refs(a.citations, pack)
+        if err:
+            log.append(f"{where}: DROPPED, {err}")
+        elif a.certainty not in (Certainty.CONFIRMED, Certainty.PROBABLE):
+            log.append(f"{where}: DROPPED, {tid} mapped only as {a.certainty.value}")
+        elif not refs:
+            log.append(f"{where}: DROPPED, {tid} has no valid evidence")
+        elif tid in taken:
+            continue
+        else:
+            taken.add(tid)
+            attack.append(AttackMapping(
+                technique_id=tid, technique_name=attack_name(tid),
+                tactic=", ".join(attack_lookup(tid)["tactics"]) or "unknown",
+                evidence=refs, confidence=0.9 if a.certainty is Certainty.CONFIRMED else 0.7,
+                certainty=a.certainty, rationale=clean(a.rationale, where)))
+
     rc = to_finding(d.root_cause, "root_cause")
     what = findings(d.what_happened, "what_happened")
     cfs = findings(d.contributing_factors, "contributing_factors")
@@ -317,6 +364,8 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
         what_happened=what,
         key_event_ids=[e for e in d.key_event_ids if e in event_ids],
         indicators=indicators,
+        attack=attack,
+        attack_catalog=attack_catalog()["version"],
         root_cause=rc,
         contributing_factors=cfs,
         detection_gaps=gaps,

@@ -222,3 +222,38 @@ and fixed on retry.
 **Conclusion:** RAG made recommendations more specific, auditable and
 occasionally more insightful, with no loss of accuracy or trap safety. It did
 not make the analysis more correct; the core scores were already at ceiling.
+
+## Phase 7: MITRE ATT&CK mapping
+
+### Answer key (written before any mapping run)
+
+Each ground truth lists **required** techniques (the original lists from Phase 1),
+**acceptable** extras (defensible, not required, not penalised) and **forbidden**
+techniques (plausible-sounding but unsupported by the evidence; a forbidden
+parent also forbids its sub-techniques). All IDs were checked against the
+official catalogue.
+
+| Incident | Forbidden (traps) | Why |
+|---|---|---|
+| INC-001 | T1213, T1110 | SharePoint access never checked; no brute force |
+| INC-002 | T1566, T1021, T1041, T1567, T1486 | no email evidence; no lateral movement, exfiltration or encryption seen |
+| INC-003 | T1078, T1537 | downloads were anonymous; no transfer to another cloud account |
+| INC-004 | T1041, T1048, T1567, T1003 | 200 GB theft is only the ransom note's claim; no credential dumping seen |
+| INC-005 | T1078.004, T1566 | insider on a managed laptop, not an account takeover |
+| INC-006 | T1530, T1537 | S3 object reads cannot be confirmed |
+
+### Rules for the run
+- The model gets **no technique list** (it would leak the answer key). It maps
+  from its own knowledge; code rejects IDs that are invented, revoked or
+  deprecated in the official catalogue and fills in names and tactics.
+- A test fails if any required, acceptable or forbidden ID appears anywhere in
+  the prompt or schema. (This caught a real leak while building: the schema's
+  example ID was T1059.001, one of INC-002's answers. Replaced with T1012.)
+- Metrics: strict recall (exact ID), lenient recall (parent or sub-technique
+  accepted), precision (required or acceptable, lenient), forbidden hits,
+  mappings removed by the validator. Every extra technique is reviewed by hand
+  before it is counted as an error.
+- Not held out: the incidents have been run before (not for ATT&CK). The
+  answer key for ATT&CK was fixed before this run.
+
+Phase 7 results: _pending_.

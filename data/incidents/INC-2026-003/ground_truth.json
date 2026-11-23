@@ -149,5 +149,12 @@
     "POL-15#3",
     "PB-05#2",
     "POL-20#4"
+  ],
+  "attack_acceptable": [
+    "T1619"
+  ],
+  "attack_forbidden": [
+    "T1078",
+    "T1537"
   ]
 }

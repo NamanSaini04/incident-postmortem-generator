@@ -138,7 +138,27 @@ class ReportScore(BaseModel):
     claims_removed: int            # items dropped by the validator
     policy_recall: float | None    # share of expected KB sections cited in actions/lessons (None if none expected)
     actions_with_policy: float | None  # share of corrective actions citing at least one KB section
+    attack_recall_strict: float | None   # required techniques mapped with the exact ID
+    attack_recall_lenient: float | None  # ... or with its parent / a sub-technique of it
+    attack_precision: float | None       # mapped techniques that are required or acceptable (lenient); None if none
+    attack_forbidden_hits: list[str]     # mapped techniques the answer key says the evidence does NOT support
+    attack_removed: int                  # mappings dropped by the validator
     must_not_claim: list[str]      # for MANUAL check: these must not appear as confirmed facts
+
+
+def _attack_scores(gt: GroundTruth, pm) -> dict:
+    from .attack import parent, related
+    req = [a.technique_id for a in gt.attack]
+    ok = req + gt.attack_acceptable
+    got = [a.technique_id for a in getattr(pm, "attack", [])]
+    forbidden = [g for g in got if g in gt.attack_forbidden or parent(g) in gt.attack_forbidden]
+    return {
+        "attack_recall_strict": sum(r in got for r in req) / len(req) if req else None,
+        "attack_recall_lenient": sum(any(related(r, g) for g in got) for r in req) / len(req) if req else None,
+        "attack_precision": sum(any(related(g, o) for o in ok) for g in got) / len(got) if got else None,
+        "attack_forbidden_hits": forbidden,
+        "attack_removed": sum(x.startswith("attack[") and "DROPPED" in x for x in pm.validation_log),
+    }
 
 
 def _policy_recall(gt: GroundTruth, pm) -> float | None:
@@ -179,5 +199,6 @@ def score_report(gt: GroundTruth, pm) -> ReportScore:
         policy_recall=_policy_recall(gt, pm),
         actions_with_policy=(sum(bool(a.policy_refs) for a in pm.corrective_actions) / len(pm.corrective_actions)
                              if pm.corrective_actions else None),
+        **_attack_scores(gt, pm),
         must_not_claim=gt.must_not_claim,
     )

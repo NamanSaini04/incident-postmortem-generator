@@ -68,7 +68,12 @@ Hard rules:
    lessons, also cite the K section that the action follows or that was not followed (quote it exactly). Every
    action and lesson must still cite at least one evidence record (R...) showing why it applies here. Never cite
    K sections for facts about this incident. Only use K sections that actually apply.
-13. Be concise and specific. No filler."""
+13. MITRE ATT&CK: in "attack", list the Enterprise ATT&CK techniques (or sub-techniques, when the evidence is
+   specific enough) that the evidence SHOWS the attacker or insider performing. Each needs certainty confirmed or
+   probable and evidence citations (R...). Do not map behaviour that analysts only suspect, that the attacker
+   claims, or that is "not checked"/"not confirmed". Do not map responder actions. Code checks every ID against
+   the official ATT&CK catalogue and fills in names, so give IDs only.
+14. Be concise and specific. No filler."""
 
 
 def build_user_prompt(pack: EvidencePack, issues: list[Issue] | None = None, previous: dict | None = None) -> str:
@@ -232,16 +237,28 @@ def render_markdown(pm: Postmortem) -> str:
         L.append("_None identified._")
     L.append("")
 
-    L += ["## 5. Root cause", ""]
+    L += ["## 5. MITRE ATT&CK mapping", ""]
+    if pm.attack:
+        L += ["| Tactic | Technique | ID | Certainty | Behaviour | Evidence |", "|---|---|---|---|---|---|"]
+        for a in pm.attack:
+            L.append(f"| {a.tactic} | {_esc(a.technique_name)} | {a.technique_id} | {a.certainty.value} "
+                     f"| {_esc(a.rationale)} |{cite(a.evidence)} |")
+        L += ["", f"_Technique IDs checked against {pm.attack_catalog}. "
+                  "ATT&CK® is a registered trademark of The MITRE Corporation._"]
+    else:
+        L.append("_No techniques passed validation._")
+    L.append("")
+
+    L += ["## 6. Root cause", ""]
     if pm.root_cause:
         L.append(f"**[{pm.root_cause.certainty.value}]** {pm.root_cause.statement}{cite(pm.root_cause.evidence)}")
     else:
         L.append("_Not determined. The draft root cause failed validation (see log)._")
     L.append("")
     findings("### Contributing factors", pm.contributing_factors, "None validated.")
-    findings("## 6. Detection gaps", pm.detection_gaps, "None validated.")
+    findings("## 7. Detection gaps", pm.detection_gaps, "None validated.")
 
-    L += ["## 7. Lessons learned", ""]
+    L += ["## 8. Lessons learned", ""]
     for area in ("people", "process", "technology", "governance"):
         items = [x for x in pm.lessons if x.area == area]
         if items:
@@ -251,7 +268,7 @@ def render_markdown(pm: Postmortem) -> str:
     if not pm.lessons:
         L += ["_None validated._", ""]
 
-    L += ["## 8. Corrective actions", ""]
+    L += ["## 9. Corrective actions", ""]
     if pm.corrective_actions:
         L += ["| Priority | Action | Why | Policy | Owner | Timeframe | Expected benefit |",
               "|---|---|---|---|---|---|---|"]
@@ -264,14 +281,14 @@ def render_markdown(pm: Postmortem) -> str:
         L.append("_None validated._")
     L.append("")
 
-    L += ["## 9. Open questions and remaining risks", ""]
+    L += ["## 10. Open questions and remaining risks", ""]
     L += [f"- **Open:** {q}" for q in pm.open_questions]
     L += [f"- **Risk:** {r}" for r in pm.remaining_risks]
     if not (pm.open_questions or pm.remaining_risks):
         L.append("_None recorded._")
     L.append("")
 
-    L += ["## 10. Validation log", ""]
+    L += ["## 11. Validation log", ""]
     L += [f"- {x}" for x in pm.validation_log] or ["- No problems found."]
     L.append("")
 

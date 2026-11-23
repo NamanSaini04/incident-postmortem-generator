@@ -44,6 +44,7 @@ flowchart TD
 | `evidence_pack.py`, `llm.py`, `postmortem.py` — LLM draft + Markdown report | 5 | Done |
 | `validate.py` — claim vs evidence checks | 5 (basic), 9 (full) | Basic done |
 | `kb.py`, `abtest.py` — policy retrieval and A/B summary | 6 | Done |
+| `attack.py` — ATT&CK catalogue, ID checks, mapping scores | 7 | Done |
 | Markdown report (5), PDF (11) | 5, 11 | Markdown done |
 | `evaluate.py` + `variants.py` — timeline scoring on clean and messy data | 4 (basic), 12 (full) | Basic done |
 
@@ -191,6 +192,22 @@ fake LLM so far; real-model results come from running it.
   checked against the section text, like evidence quotes.
 - **Report:** a "Policy" column in corrective actions and a "Policy and playbook
   references" index, separate from the evidence index.
+
+## MITRE ATT&CK mapping (Phase 7)
+
+- **Catalogue:** `data/attack/enterprise_techniques.json`, built by
+  `scripts/build_attack_catalog.py` from MITRE's official `enterprise-attack.json`
+  (source URL, SHA-256, download date, version and MITRE's notice stored in the
+  file). 867 techniques, 706 active.
+- **No list in the prompt:** giving the model a shortlist would leak the answer
+  key, so it maps from its own knowledge. A test fails if any answer-key ID
+  appears in the prompt or schema.
+- **Code checks:** the ID exists and is not revoked or deprecated; certainty is
+  confirmed or probable (no "possible" mappings); each mapping cites evidence
+  records with exact quotes; knowledge-base citations are rejected; duplicates
+  are removed. Names and tactics come from the catalogue, never from the model.
+- **Scoring:** strict recall, lenient recall (parent/sub-technique), precision
+  against required + acceptable techniques, and forbidden hits (traps).
 
 ## Safety rules enforced in code (not just in prompts)
 

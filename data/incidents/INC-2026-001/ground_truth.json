@@ -203,5 +203,10 @@
     "POL-07#3",
     "PB-01#3",
     "POL-12#3"
+  ],
+  "attack_acceptable": [],
+  "attack_forbidden": [
+    "T1213",
+    "T1110"
   ]
 }

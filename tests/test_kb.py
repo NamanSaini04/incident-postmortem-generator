@@ -145,3 +145,4 @@ def test_ab_summary_from_saved_reports(tmp_path, pack):
     text = summary(load_scores(tmp_path))
     assert f"| {INC} | actions_with_policy | 0% | 100% |" in text
     assert "Incidents compared: 1" in text
+    assert "| claims_removed | 0.00 per report | 0.00 per report |" in text   # a count, not a percentage

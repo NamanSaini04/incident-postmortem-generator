@@ -215,6 +215,8 @@ class AttackMapping(BaseModel):
     tactic: str = Field(min_length=3)
     evidence: list[EvidenceRef] = Field(min_length=1)
     confidence: float = Field(ge=0.0, le=1.0)
+    certainty: Certainty = Certainty.PROBABLE
+    rationale: str = ""
 
     @field_validator("technique_id")
     @classmethod
@@ -298,6 +300,11 @@ class GroundTruth(BaseModel):
     timeline: list[GroundTruthEvent] = Field(min_length=3)
     iocs: dict[EntityType, list[str]]
     attack: list[GroundTruthAttack]
+    attack_acceptable: list[str] = Field(
+        default_factory=list, description="Defensible extra technique IDs: not required, not penalised.")
+    attack_forbidden: list[str] = Field(
+        default_factory=list, description="Plausible-sounding but unsupported technique IDs (hallucination traps). "
+                                          "A parent ID also forbids its sub-techniques.")
     root_cause: Finding
     contributing_factors: list[Finding]
     expected_kb_sections: list[str] = Field(
@@ -360,6 +367,13 @@ class SummaryPoint(BaseModel):
         description='Findings this point restates, e.g. "what_happened[2]", "root_cause", "contributing_factors[0]", "detection_gaps[1]"')
 
 
+class DraftAttack(BaseModel):
+    technique_id: str = Field(description="Enterprise ATT&CK technique or sub-technique ID, e.g. T1012")
+    certainty: Certainty
+    rationale: str = Field(description="One sentence: which observed behaviour this is")
+    citations: list[Citation] = Field(default_factory=list)
+
+
 class DraftReport(BaseModel):
     title: str
     category: IncidentCategory
@@ -370,6 +384,7 @@ class DraftReport(BaseModel):
     what_happened: list[DraftFinding]
     key_event_ids: list[str] = Field(default_factory=list, description="Timeline event IDs (EV001...) that matter most")
     indicators: list[str] = Field(default_factory=list, description="Malicious indicators, copied exactly from the observables list")
+    attack: list[DraftAttack] = Field(default_factory=list, description="MITRE ATT&CK techniques the evidence shows")
     root_cause: DraftFinding
     contributing_factors: list[DraftFinding] = Field(default_factory=list)
     detection_gaps: list[DraftFinding] = Field(default_factory=list)
@@ -408,6 +423,8 @@ class Postmortem(BaseModel):
     what_happened: list[Finding]
     key_event_ids: list[str]
     indicators: list[Indicator]
+    attack: list[AttackMapping] = Field(default_factory=list)
+    attack_catalog: str = ""
     root_cause: Finding | None
     contributing_factors: list[Finding]
     detection_gaps: list[Finding]
