@@ -4,7 +4,7 @@ Naman Saini · 24 November 2026 · Code: github.com/NamanSaini04/incident-postmo
 
 ## 1. Executive Summary
 
-This project turns raw incident evidence (logs, alerts, analyst notes) into a structured, evidence-grounded postmortem draft. Its central design rule is that **code extracts the facts and the LLM only writes about facts it is given**. Every claim in a report cites a specific record, and every citation is checked by code twice: once while the report is generated, and again afterwards by an independent verifier that re-reads the original files.
+This project turns raw incident evidence (logs, alerts, analyst notes) into a structured, evidence-grounded postmortem draft. Its central design rule is that code extracts the facts and the LLM only writes about facts it is given. Every claim in a report cites a specific record, and every citation is checked by code twice: once while the report is generated, and again afterwards by an independent verifier that re-reads the original files.
 
 It was evaluated on 6 synthetic incidents (phishing, macro malware, cloud data exposure, ransomware, insider data theft, cloud key misuse), with answer keys and "trap" statements written before each run and predictions pre-registered.
 
@@ -28,7 +28,7 @@ An LLM can draft a postmortem quickly, but in security a fluent draft is dangero
 - **Wrong timeline.** A timestamp without a timezone silently treated as UTC; a next-day event read as same-day.
 - **Unverifiable claims.** A reader cannot check a statement that cites nothing.
 
-The goal was therefore not "an LLM that writes postmortems" but **a system whose every claim can be traced to evidence, whose uncertainty is explicit, and whose failure modes are measured**.
+So the goal was a system where every claim can be traced to evidence, uncertainty is stated, and the ways it fails are measured. Writing fluent text was the easy part.
 
 ## 3. Incident Response Background
 
@@ -74,7 +74,7 @@ The knowledge base holds 13 synthetic company documents: 5 incident playbooks, 4
 - **Knowledge-base citations are allowed only on lessons and corrective actions**, never on findings: a policy says what should happen, not what did happen. An action that cites only policy and no evidence is dropped.
 - **Leak guard:** a test fails if incident facts appear in the knowledge base.
 
-A/B test, 6 incidents with and without retrieval: core accuracy (category, severity, root cause, contributing factors) was 100% in both arms and traps were avoided in both. With retrieval, 95% of corrective actions cited a policy and policy recall was 85%. By my reading, 31 of 33 policy citations applied (2 were weak). Retrieval made recommendations specific and checkable (for example "DLP audit mode at most 30 days, POL-12 §5"), and surfaced two insights absent without it: a past review had already agreed the fix for a recurring failure, and an insider was interviewed before the laptop was collected, against the playbook. **It did not make the analysis more correct**; the core scores were already at ceiling.
+A/B test, 6 incidents with and without retrieval: core accuracy (category, severity, root cause, contributing factors) was 100% in both arms and traps were avoided in both. With retrieval, 95% of corrective actions cited a policy and policy recall was 85%. By my reading, 31 of 33 policy citations applied (2 were weak). Retrieval made the recommendations specific and checkable (for example "DLP audit mode at most 30 days, POL-12 §5"), and surfaced two insights absent without it: a past review had already agreed the fix for a recurring failure, and an insider was interviewed before the laptop was collected, against the playbook. It did not make the analysis more accurate, because the core scores were already at 100% without it.
 
 ## 6. Evidence Processing
 
@@ -82,40 +82,40 @@ Ingestion reads TXT, CSV and JSON, stores a SHA-256 hash of each file, and split
 
 Extraction finds observables, not indicators of compromise: the company's own VPN IP is extracted too, because deciding what is malicious is analysis that needs context. Three methods are used: regex for IPs, URLs, domains, emails and hashes; known fields such as `user` or `userIdentity.userName`; and re-finding known users and hosts in free-text notes. Precision guards include a known-TLD list (so `j.patel` and `powershell.exe` are not domains), IP validation with a scope tag (public, private, documentation), and URLs ending at quotes and punctuation.
 
-Result: **138/138 answer-key indicators found** across the 6 incidents and their 5 messy variants each.
+Result: 138/138 answer-key indicators found across the 6 incidents and their 5 messy variants each.
 
 Not supported: PDF and DOCX evidence (listed in the spec), defanged indicators such as `evil[.]com`, and relative times ("next day 09:30").
 
 ## 7. Timeline Reconstruction
 
-- Timestamps with a timezone are converted to UTC. **Timestamps without one are never silently assumed to be UTC**: each event records a time basis of exact, timezone_assumed, or date_inferred.
+- Timestamps with a timezone are converted to UTC. Timestamps without one are never silently assumed to be UTC: each event records a time basis of exact, timezone_assumed, or date_inferred.
 - Time-only analyst notes ("09:52 Revoked sessions") take their date from a date heading in the notes, rolling to the next day past midnight.
 - Duplicate events across logs (an EDR and a proxy record of the same connection) are merged within 2 seconds when they share a strong observable and do not conflict on user or host.
 
-Result: **100% event recall, timestamp accuracy and order accuracy over 36 cases** (6 incidents × original + 5 variants: shuffled rows, noise rows, offset timezones, duplicate alerts, and all of these combined).
+Result: 100% event recall, timestamp accuracy and order accuracy over 36 cases (6 incidents × original + 5 variants: shuffled rows, noise rows, offset timezones, duplicate alerts, and all of these combined).
 
 The PDF timeline chart exposed one presentation bug that the tests had missed: for an incident spanning midnight, the axis showed only hours, so an event the next morning read as the same night. The axis now shows dates whenever events span two days, with a test.
 
 ## 8. MITRE ATT&CK Mapping
 
-The model maps behaviour to techniques **from its own knowledge**. It is given no technique list, because a list would leak the answer key; a test fails if any answer-key technique ID appears anywhere in the prompt or schema. This test caught a real leak while building: the schema's example ID, T1059.001, was one of INC-002's answers.
+The model maps behaviour to techniques from its own knowledge. It is given no technique list, because a list would leak the answer key; a test fails if any answer-key technique ID appears anywhere in the prompt or schema. This test caught a real leak while building: the schema's example ID, T1059.001, was one of INC-002's answers.
 
 Code then checks every ID against the official MITRE enterprise ATT&CK catalogue (matrix modified 2026-07-31), rejects invented, revoked or deprecated IDs, and fills in the official names and tactics. Mapped techniques must be confirmed or probable and cite evidence.
 
-Each answer key lists required, acceptable and **forbidden** techniques. Forbidden ones are plausible-sounding but unsupported, such as exfiltration techniques for a ransom note's unverified theft claim, or phishing where no email evidence exists.
+Each answer key lists required, acceptable and forbidden techniques. Forbidden ones are plausible-sounding but unsupported, such as exfiltration techniques for a ransom note's unverified theft claim, or phishing where no email evidence exists.
 
-Results: lenient recall 94% and precision 97% over 12 reports, and **0 of 17 forbidden techniques used**. The main recurring miss is instructive: in INC-004 the model mapped an internet-facing RDP logon as T1021.001 (Remote Desktop, lateral movement) instead of T1133 (External Remote Services, initial access). Because T1021.001 was on the acceptable list for internal RDP, the scorer counted it correct. **An acceptable list cannot check why a technique was chosen**; that error was found only by reading the report.
+Results: lenient recall 94% and precision 97% over 12 reports, and 0 of 17 forbidden techniques used. The main recurring miss is instructive: in INC-004 the model mapped an internet-facing RDP logon as T1021.001 (Remote Desktop, lateral movement) instead of T1133 (External Remote Services, initial access). Because T1021.001 was on the acceptable list for internal RDP, the scorer counted it correct. A list of acceptable answers cannot check why a technique was chosen. I only found this error by reading the report.
 
 ## 9. Root Cause Analysis
 
 The report separates the immediate cause, the root cause, contributing factors and detection gaps. Each is a finding with a certainty label and citations.
 
-- Root cause cites the answer key's record in **18/18 reports** across 3 runs, and contributing-factor recall is 100%.
+- Root cause cites the answer key's record in 18/18 reports across 3 runs, and contributing-factor recall is 100%.
 - Across runs, the cited root-cause *record* matched exactly in only 1 of 6 incidents: the model picks different supporting lines for the same cause.
-- **Certainty was the weak point.** The independent reviewer (Section 10) found that the drafts systematically labelled cause-and-effect inferences as confirmed: "routed to a queue instead of paging, *which delayed response*", where the record states only the routing. A prompt rule now says a finding is only as certain as its least certain part.
+- Certainty was the weak point. The independent reviewer (Section 10) found that the drafts systematically labelled cause-and-effect inferences as confirmed: "routed to a queue instead of paging, *which delayed response*", where the record states only the routing. A prompt rule now says a finding is only as certain as its least certain part.
 - I corrected two of my own earlier diagnoses here. A "certainty drift" I had called the most consistent weakness turned out to be the model making different claims across runs, each labelled correctly; my answer key had bundled a stated fact with an inference. And a claim I had called under-claimed, the reviewer showed to be over-claimed, and it was right.
 
-Impact and response timing (Phase 8): the model chooses four timeline events (attack start, first detection, response start, containment); **code computes the durations** and marks them approximate if a time was inferred. Milestones were right in 24/24 cases, but the evidence notes name these moments plainly, so this is an easy test. The model does still write durations itself in prose ("about 45 minutes later"); those were correct in every case I spot-checked but are not verified by code.
+Impact and response timing (Phase 8): the model chooses four timeline events (attack start, first detection, response start, containment); code computes the durations and marks them approximate if a time was inferred. Milestones were right in 24/24 cases, but the evidence notes name these moments plainly, so this is an easy test. The model does still write durations itself in prose ("about 45 minutes later"); those were correct in every case I spot-checked but are not verified by code.
 
 ## 10. Postmortem Generation and Validation
 
@@ -129,7 +129,7 @@ Validation happens in three layers, each catching what the previous one cannot:
 
 Two further code checks for meaning were tested offline and rejected. Requiring named accounts in the cited records flagged 4 of 294 claims, with only 1 true problem. Requiring numbers in the cited records flagged 56 of 419 claims, none of them real problems: they were reformatted dates, units, and correct arithmetic.
 
-**Reviewer agent.** Of the 8 specialist agents the spec suggested, only one was built, because only one gap needed it; the other stages are tested deterministic code. The reviewer sees each claim with the full text of its cited records, never the draft's reasoning, and returns supported, overstated, understated or unsupported. It only flags; a human decides. To measure it, known errors that keep real citations (so every code check passes) were planted among the real claims: certainty raised from probable to confirmed, a statement moved onto unrelated citations, and an account, host or IP swapped for another from the same evidence (for example, the company's own VPN IP as "the attacker").
+Reviewer agent. Of the 8 specialist agents the spec suggested, only one was built, because only one gap needed it; the other stages are tested deterministic code. The reviewer sees each claim with the full text of its cited records, never the draft's reasoning, and returns supported, overstated, understated or unsupported. It only flags; a human decides. To measure it, known errors that keep real citations (so every code check passes) were planted among the real claims: certainty raised from probable to confirmed, a statement moved onto unrelated citations, and an account, host or IP swapped for another from the same evidence (for example, the company's own VPN IP as "the attacker").
 
 The reports are delivered as Markdown, a PDF with a timeline chart, and a Streamlit dashboard in demo mode (saved reports, no API calls, so a public link cannot spend credit).
 
@@ -174,7 +174,7 @@ Evaluation over 18 reports (3 runs of 6 incidents) unless stated:
 
 Held-out test (3 incidents never used for tuning, rules frozen first): category, severity and root cause 3/3, traps 12/12. The 3 tuned incidents had scored category 2/3 and severity 2/3 before the prompt fixes.
 
-Reviewer agent (Phase 8 reports): **28/29 planted errors caught** (entity swaps 6/6, statement swaps 12/12, certainty 10/11). Of 132 unmodified claims, 30 were flagged. My reading of those 30: 12 genuine certainty inflation, 9 true claims with incomplete citations, 6 nitpicks or false alarms, 3 unclear. The pre-registered prediction of at most 15% flagged failed, because the drafts were worse than the earlier checks could detect, not because the reviewer was noisy.
+Reviewer agent (Phase 8 reports): 28/29 planted errors caught (entity swaps 6/6, statement swaps 12/12, certainty 10/11). Of 132 unmodified claims, 30 were flagged. My reading of those 30: 12 genuine certainty inflation, 9 true claims with incomplete citations, 6 nitpicks or false alarms, 3 unclear. The pre-registered prediction of at most 15% flagged failed, because the drafts were worse than the earlier checks could detect, not because the reviewer was noisy.
 
 Fix and re-test (INC-002 and INC-004, one run each): flags on unmodified claims fell from 13 to 6 and certainty inflation from 7 to 1, while category, severity, root cause and citations held. Costs: 2 claims were now under-claimed (one rightly flagged by the reviewer, one I judge defensible); INC-004 again missed T1133, which the pre-fix Phase 7 run had also missed, so it is likely run-to-run variation; and the stricter rule appears to drop some findings rather than downgrade them.
 
@@ -194,7 +194,7 @@ A note on the answer keys: INC-003's key lists an IP as an indicator while also 
 ## 14. Limitations
 
 - **Synthetic, self-authored data.** The incidents, the notes and the answer keys were written by the same author. The notes state key facts plainly, which makes several tests easy (for example milestone selection).
-- **Same model family** for the generator, the reviewer, and the assistant used during development: shared blind spots are possible.
+- **Same model family** for the generator and the reviewer, so they may share blind spots.
 - **Small samples.** 6 incidents; most measurements are one run per incident; the fix was re-tested on 2 incidents once each.
 - **Proxy measures.** Recommendation relevance checks that an action is tied to evidence, not that it is a good fix.
 - **Not measured by code:** whether claims are true (traps and reviewer flags were judged by hand, by me), and durations written in prose.
@@ -212,9 +212,9 @@ A note on the answer keys: INC-003's key lists an IP as an indicator while also 
 
 ## 16. Conclusion
 
-The project shows a workable pattern for using an LLM where wrong answers are costly. Code owns the facts, the model writes only about cited records, and each layer of checking is measured by the failures it can and cannot catch. Code checks proved that every citation is real (1401/1401) and kept every invented indicator out. They could not see the subtler failure: correct quotes supporting overconfident claims. An independent reviewer agent found it, and a measured fix reduced it.
+This project tests one approach to using an LLM where wrong answers are costly: code owns the facts, the model writes only about cited records, and each layer of checking is judged by what it can and cannot catch. Code checks proved that every citation is real (1401/1401) and kept every invented indicator out. They could not see the subtler failure: correct quotes supporting overconfident claims. An independent reviewer agent found it, and a measured fix reduced it.
 
-The most useful practices were not model choices but method: answer keys and traps written before runs, predictions written down and kept when they failed, held-out incidents, and reading the outputs rather than trusting the scores. Several of the most important findings came from my own mistakes in answer keys and scoring, and they are documented as such.
+What helped most was method rather than model choice. I wrote answer keys and traps before each run, recorded predictions and kept the ones that failed, held three incidents back from tuning, and read the reports instead of trusting the scores. Several of the most important findings were mistakes in my own answer keys and scoring, and the results file records them.
 
 ## 17. References
 
