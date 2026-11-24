@@ -16,7 +16,7 @@ independent verification of every citation)
 
 ### Results at a glance (6 synthetic incidents; details and limits in the report)
 
-| | |
+| Measure | Result |
 |---|---|
 | Indicators extracted / timeline accuracy | 138/138 / 100% over 36 messy cases |
 | Category and severity correct | 18/18 reports, identical across 3 runs |
