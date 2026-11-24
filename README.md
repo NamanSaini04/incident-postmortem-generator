@@ -8,7 +8,7 @@ Synthetic data only.
 (no sign-up, no API calls; it shows 6 saved reports with their evidence and an
 independent verification of every citation)
 
-## Status: Phase 12 of 15 complete (dashboard live, PDF export, evaluation suite)
+## Status: Phase 13 of 15 complete (dashboard live, PDF export, evaluation suite, reviewer agent)
 
 | Phase | What | State |
 |---|---|---|
@@ -21,8 +21,9 @@ independent verification of every citation)
 | 10 | Streamlit dashboard (demo mode: saved reports, no API calls) | Done. Live on Streamlit Community Cloud |
 | 11 | Incident PDF export (title page, timeline chart, tables, page numbers) | Done. Also a button in the dashboard |
 | 12 | Evaluation suite: the 10 measures in one command, no API calls | Done. See `docs/evaluation.md` |
-| 13 | Optional multi-agent version | Next (optional) |
-| 14-15 | Technical report, final testing and documentation | Planned |
+| 13 | Reviewer agent: checks each claim against its cited records; pipeline trace | Built. Benchmark run pending |
+| 14 | Technical report | Next |
+| 15 | Final testing and documentation | Planned |
 
 Across all runs: 116/116 hallucination traps avoided (checked by hand).
 
@@ -36,7 +37,7 @@ Details in `docs/results.md`.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install ".[dev,llm,app]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 331 passed (dashboard and PDF tests skip if their libraries are missing)
+pytest -q          # expect: 347 passed (dashboard and PDF tests skip if their libraries are missing)
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline
@@ -50,6 +51,8 @@ bash scripts/run_phase8.sh                           # 6 runs + root cause/impac
 python -m pmgen.verify reports/phase8/               # re-check saved reports, no API call
 python -m pmgen.pdf reports/phase8/ --out reports/pdf # Cybersecurity_Incident_Postmortem_<ID>.pdf
 python -m pmgen.evalsuite reports/phase7 reports/phase8 --out docs/evaluation.md   # all 10 measures, no API calls
+python -m pmgen.agents review reports/phase8 --plant --dry-run   # reviewer prompt, no API call
+python -m pmgen.agents review reports/phase8 --plant             # reviewer + planted-error benchmark (~$0.15-0.30)
 ```
 
 ## Running the LLM step
@@ -120,12 +123,13 @@ src/pmgen/dashboard_data.py  Data for the dashboard (tested without Streamlit)
 streamlit_app.py           The dashboard
 src/pmgen/pdf.py           PDF export (ReportLab, no browser needed)
 src/pmgen/evalsuite.py     Evaluation: the 10 measures across saved runs
+src/pmgen/agents.py        Reviewer agent, planted-error benchmark, pipeline trace
 src/pmgen/provenance.py   Resolve "file / row N" back to the source record
 src/pmgen/samples.py      Load bundled incidents
 data/incidents/INC-*/     Evidence files + ground_truth.json
 docs/architecture.md      Design, pipeline diagram, roadmap
 docs/sample_reports/      Real generated reports, one folder per phase
-tests/                    331 tests: schema rules, validator, verifier, scoring, dashboard, PDF, evaluation
+tests/                    347 tests: schema rules, validator, verifier, scoring, dashboard, PDF, evaluation, agents
 ```
 
 See `docs/architecture.md` for the design and `docs/results.md` for real-model results.

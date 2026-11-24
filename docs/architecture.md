@@ -294,6 +294,35 @@ still misread it). Found while building this: a dropped indicator was never logg
 as DROPPED, so "claims removed" undercounted it in earlier phases. Fixed in the
 validator; older logs are counted from their final unresolved problem lines.
 
+## Multi-agent version (Phase 13)
+
+Only one stage was turned into a new agent, because only one gap needed it.
+
+```
+ingest -> extract -> timeline -> KB retrieval   code
+draft + validate                                LLM + code (existing)
+review                                          LLM (new): does the cited record support the claim?
+verify                                          code
+```
+
+- **Why only one:** every other stage is deterministic code that is already
+  tested. Making them LLM calls would add cost and failure modes with no gain.
+- **Reviewer agent:** sees each factual claim with its stated certainty and the
+  full text of the records it cites, never the draft's reasoning. Verdict:
+  supported / overstated / unsupported. **It only flags**: nothing is changed or
+  deleted automatically; a human decides.
+- **Benchmark with planted errors:** known errors that keep real citations, so
+  every code check passes and only reading for meaning catches them: certainty
+  raised from probable to confirmed; a statement moved onto unrelated citations;
+  an account, host or IP swapped for another one from the same evidence (like for
+  like). Claims are shuffled and given neutral IDs, so the reviewer cannot tell
+  which are planted.
+- **Trace:** every stage logs seconds, tokens and estimated cost.
+- **Limits:** the reviewer is the same model family as the drafter; the planted
+  errors are simple; a certainty plant may turn out to be genuinely supported, in
+  which case "supported" is right and the plant was wrong; flagged original claims
+  need a human to judge, they are not automatically false alarms.
+
 ## Safety rules enforced in code (not just in prompts)
 
 - A `confirmed` timeline event must cite evidence and have a timestamp.

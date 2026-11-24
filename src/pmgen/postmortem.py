@@ -40,6 +40,10 @@ Hard rules:
 2. Every factual claim must cite records: give the record ID and copy a short exact quote (3-200 characters) from that record.
 3. Certainty: "confirmed" = directly stated in evidence; "probable" = strongly supported, small inference;
    "possible" = plausible but weakly supported; "unknown" = not determinable. Confirmed and probable MUST cite records.
+   A finding is only as certain as its least certain part. A cause-and-effect link ("so ...", "which delayed ...",
+   "because ...", "allowed ...") is an inference, so the finding is "probable" unless a record states that link.
+   If you want "confirmed", state only what the records say and leave the inferred effect out.
+   Cite EVERY record a finding relies on (e.g. both the failed logons and the later successful logon), not just one.
 4. Analyst notes that say "may", "possibly", "not checked", "not confirmed" or "open question" are NOT confirmed facts.
    Report them as open questions, or as "possible"/"unknown".
 5. Indicators: list only malicious ones, copied exactly from the OBSERVABLES list. Internal domains, company

@@ -482,3 +482,96 @@ left out of the means and out of completeness. Current figures: `docs/evaluation
   held back the one IP because the notes say it may be the researcher who reported
   the issue. That is arguably correct, and it exposes tension in my answer key
   (that IP is listed as an IOC while "it is malicious" is a must-not-claim).
+
+## Phase 13: reviewer agent (2026-11-24)
+
+**Pre-registered before the first real run** (`python -m pmgen.agents review reports/phase8 --plant`):
+- Planted errors caught overall: at least 80%.
+- Entity swaps and statement swaps: at least 90% each (the cited text plainly does not say it).
+- Certainty plants: lower, maybe 50-70%. Some "probable" claims may really be directly stated, which
+  makes the plant wrong, not the reviewer.
+- Unmodified claims flagged: at most 15%. Each one is judged by hand before calling it a false alarm.
+- Cost: about $0.15-0.30 for 6 reports.
+
+**Phase 13 result (Phase 8 reports, claude-sonnet-5-5 as reviewer, $0.207):**
+
+| Prediction | Result | Held? |
+|---|---|---|
+| Planted errors caught >= 80% | 28/29 (97%) | yes |
+| Entity and statement swaps >= 90% each | entity 6/6, swap 12/12 | yes |
+| Certainty plants 50-70% | 10/11 | **no**: higher than predicted |
+| Unmodified claims flagged <= 15% | 30/132 (23%) | **no** |
+| Cost $0.15-0.30 | $0.207 | yes |
+
+**The 30 flags on unmodified claims, judged by hand (my judgement, as the author of the data):**
+
+| Kind | Count | Example |
+|---|---|---|
+| Real certainty inflation: an inference labelled confirmed | 12 | "routed to a queue instead of paging, **which delayed response**" (record states the routing only) |
+| Incomplete citation: true, but the supporting record is not cited | 9 | T1110 claims a successful logon after 312 failures; only the failure record is cited |
+| Nitpick or false alarm | 6 | ransom-note claim marked overstated while the reviewer itself says the wording is fine |
+| Unsure | 3 | "this was the first report" (INC-003): implied by the notes, not stated |
+
+**What this means:**
+- The miss rate went the wrong way for the project, not the reviewer: the drafts contain more
+  certainty inflation than the validator, verifier or Phase 8 scoring could see. About 1 in 11
+  original claims (12/132) states a cause-effect inference as confirmed. The pattern is systematic:
+  "so ...", "which delayed ...", "because ...".
+- 9 claims are true but cite fewer records than they need. The verifier cannot see this either: every
+  quote it checks exists.
+- About 6 of 132 flags (5%) look like real false alarms, so the reviewer is usable as a flagging tool,
+  not as an automatic judge.
+- It contradicts one of my earlier notes: I called INC-006's "leaked key found only during the
+  response" under-claimed (probable while stated). The reviewer says it is overstated, because the
+  notes record when the key was found, not that it was not found earlier. The reviewer is right.
+- Limits: same model family as the drafter; one run; I judged the 30 flags myself.
+
+**Fix identified, not yet applied:** a prompt rule that a cause-effect link is probable unless a record
+states it, and that a claim must cite every record it relies on. Testing it means regenerating reports.
+
+**Fix applied (prompt rule 3, 2026-11-24):** a finding is only as certain as its least certain part; a
+cause-and-effect link is probable unless a record states it; cite every record a finding relies on.
+
+**Pre-registered before testing on INC-002 and INC-004** (baseline flags on unmodified claims:
+INC-002 5, INC-004 8, total 13; of these, certainty inflation 3 + 4 = 7 by my reading; the
+"9 / 13 flagged" per-incident counts in the summary include planted claims):
+- Certainty-inflation flags on these two: from 7 to at most 2.
+- Total flags on unmodified claims: lower than 13, but not near zero (citation gaps and nitpicks remain).
+- No regression: category, severity, root cause grounding and ATT&CK still pass; verifier PASS;
+  traps still avoided (checked by hand).
+- Risk to watch: the model may now mark too much as probable (over-hedging), including facts the
+  records state outright. Count confirmed claims before and after.
+
+**Fix result (INC-002 + INC-004, one run each, review $0.069):**
+
+| | Before | After | Prediction | Held? |
+|---|---|---|---|---|
+| Flags on unmodified claims | 13 | 6 of 45 | fewer than 13 | yes |
+| Certainty inflation (my reading) | 7 | 1 | at most 2 | yes |
+| Planted errors caught | - | 10/11 | - | - |
+| Traps, INC-004 (by hand) | - | 4/4 avoided | none broken | yes (INC-002 not checked) |
+
+The 6 remaining flags: 1 real inflation ("kept contacting ... during that time": contact at 08:49, 08:50,
+11:21 only), 1 citation gap, 2 nitpicks on "cannot be ruled out" / "not recorded" statements, and
+**2 over-hedges**: T1569.002 marked probable although event 7045 records the install (reviewer right),
+and T1486 marked probable (defensible: encryption itself is not observed; I disagree with the reviewer).
+
+**New problems found:**
+- The reviewer had no verdict for over-hedging, so it labelled under-claims "overstated" with suggested
+  "confirmed". Added an "understated" verdict and a per-verdict count.
+- INC-004 no longer maps T1133 (internet-exposed RDP as the entry point), which the Phase 8 run did.
+  Possible ATT&CK regression from the stricter rule, or run-to-run variation; one run cannot tell.
+- Two incidents, one run each: this shows the direction of the change, not its size.
+
+**Regression check (evalsuite on Phase 8 vs fix runs, $0):**
+- INC-004 ATT&CK lenient recall 100% -> 80% (T1133 not mapped). The Phase 7 run of INC-004 also missed
+  T1133 (80%) before the fix existed, so run-to-run variation is the likelier cause; one run cannot tell.
+- INC-004 actions tied to a finding (proxy) 83% -> 57%: the new report has fewer findings (1 detection
+  gap instead of 2), so the egress-review and lateral-movement actions point at records no finding uses.
+  Partly a proxy artefact, but also a real cost: the stricter rule seems to make the model drop some
+  findings instead of downgrading them.
+- INC-002 ATT&CK precision 83% -> 100%. Category, severity, root cause, milestones, citations (670/670)
+  and completeness unchanged.
+- **Decision: keep the rule.** Certainty inflation fell from 7 to 1; the costs are smaller and partly
+  noise. Not re-tested further: about $0.50 of API credit left. Future work: run the fix on all 6
+  incidents, 3 runs each, to separate the rule's effect from variation.
