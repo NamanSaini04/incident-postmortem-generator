@@ -138,13 +138,14 @@ def timeline_drawing(pm: Postmortem, width: float = CONTENT_W) -> Drawing | None
         else:
             d.add(Circle(cx, cy, 2.6, fillColor=col, strokeColor=col))
         if e.event_id in marks:
-            d.add(String(cx, cy + 6, "".join(marks[e.event_id]), fontName="Helvetica-Bold", fontSize=7,
+            d.add(String(cx, cy + 6, " ".join(marks[e.event_id]), fontName="Helvetica-Bold", fontSize=7,
                          fillColor=NAVY, textAnchor="middle"))
     base = 36
     d.add(Line(left, base, width - right, base, strokeColor=GREY, strokeWidth=0.5))
     for i in range(5):
         ts = t0 + (t1 - t0) * (i / 4)
-        label = ts.strftime("%d %b %H:%M") if span > 86400 else ts.strftime("%H:%M")
+        # show the date whenever the events cross midnight, so a next-day event is never read as same-day
+        label = ts.strftime("%d %b %H:%M") if t0.date() != t1.date() else ts.strftime("%H:%M")
         d.add(Line(x(ts), base, x(ts), base - 3, strokeColor=GREY, strokeWidth=0.5))
         d.add(String(x(ts), base - 12, label, fontName="Helvetica", fontSize=7, fillColor=GREY,
                      textAnchor="middle"))
@@ -353,7 +354,7 @@ def build_pdf(pm: Postmortem, out, check: VerifyResult | None = None) -> None:
                      P(_t(a.recommendation), "cell"),
                      P(f"{_t(a.reason)}{refs(a.supporting_evidence)}{prefs(a.policy_refs)}", "cell"),
                      P(_t(a.owner_team), "cell"), P(_t(a.timeframe), "cell"), P(_t(a.expected_benefit), "cell")])
-    story.append(_table(rows, [15 * mm, 48 * mm, 45 * mm, 20 * mm, 18 * mm, CONTENT_W - 146 * mm]))
+    story.append(_table(rows, [15 * mm, 45 * mm, 43 * mm, 21 * mm, 23 * mm, CONTENT_W - 147 * mm]))
 
     # ---------------------------------------------------------------- 12 open questions / risks
     story.append(P("12. Open questions and remaining risks", "h1"))

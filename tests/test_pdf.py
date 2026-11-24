@@ -85,3 +85,15 @@ def test_cli_writes_file(report, tmp_path, capsys):
     assert main([str(src), "--out", str(tmp_path / "out")]) == 0
     out = tmp_path / "out" / pdf_filename(INC)
     assert out.is_file() and out.read_bytes()[:5] == b"%PDF-"
+
+
+def test_chart_axis_shows_date_when_events_cross_midnight(report):
+    from datetime import timedelta
+    from reportlab.graphics.shapes import String
+    pm = report.model_copy(deep=True)
+    pm.timeline.events[-1].timestamp = pm.timeline.events[0].timestamp + timedelta(hours=20)
+    labels = [s.text for s in timeline_drawing(pm).contents if isinstance(s, String)]
+    first = pm.timeline.events[0].timestamp.strftime("%d %b")
+    assert any(first in t for t in labels), labels                     # dates on the axis
+    same_day = [s.text for s in timeline_drawing(report).contents if isinstance(s, String)]
+    assert not any(first in t for t in same_day)                       # same-day stays short
