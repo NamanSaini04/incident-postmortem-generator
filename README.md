@@ -4,12 +4,26 @@ Turns incident evidence (logs, alerts, analyst notes) into a structured
 postmortem where every claim cites its source. **Defensive use only.**
 Synthetic data only.
 
-**Status:** Phase 7 of 15. Validated LLM postmortem with policy retrieval (RAG) and MITRE ATT&CK mapping checked against the official catalogue; 6 synthetic incidents.
-Previous: Evidence ingestion (TXT/CSV/JSON), deterministic
-extraction, timeline reconstruction, and timeline evaluation on 3 synthetic
-incidents plus 15 messy variants (shuffled, noisy, mixed timezones,
-duplicate alerts).
-No LLM yet. Evaluated on synthetic data only; not validated on production data.
+## Status: Phase 9 of 15 complete (command-line tool; no dashboard yet)
+
+| Phase | What | State |
+|---|---|---|
+| 1-4 | Evidence ingestion (TXT/CSV/JSON), extraction, timeline reconstruction | Done. Timeline 100% on 36 cases (6 incidents x 6 messy variants) |
+| 5 | LLM postmortem with claim validation (Anthropic API) | Done. Held-out incidents: category, severity, root cause 3/3 |
+| 6 | Policy/playbook retrieval (RAG, BM25) | Done. More specific actions; no accuracy gain (A/B tested) |
+| 7 | MITRE ATT&CK mapping, checked against the official catalogue | Done. Recall 92%, 0 forbidden techniques |
+| 8 | Root cause vs immediate cause, impact scope, response timing | Done. Milestones 24/24, 0 forbidden systems/accounts |
+| 9 | Independent verifier for saved reports | Done. 6/6 reports pass, 718 items, 0 failures |
+| 10 | Streamlit dashboard (demo mode) | Next |
+| 11 | Incident PDF export | Planned |
+| 12-15 | Evaluation write-up, optional agents, technical report, deployment | Planned |
+
+Across all runs: 116/116 hallucination traps avoided (checked by hand).
+
+**Limits:** synthetic data only, written by the same author as the answer keys;
+one run per incident; the generator and the reviewer are the same model family;
+durations in the prose are written by the model and not verified by code.
+Details in `docs/results.md`.
 
 ## Quick start
 
@@ -20,12 +34,14 @@ pytest -q          # expect: 302 passed
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline
-python -m pmgen.evaluate                             # timeline scores, 18 cases (run from this folder)
+python -m pmgen.evaluate                             # timeline scores, 36 cases (run from this folder)
 python -m pmgen.postmortem data/incidents/INC-2026-001 --dry-run   # LLM prompt, no API call
 python -m pmgen.kb --eval                            # knowledge-base retrieval recall, no API call
 bash scripts/ab_test.sh                              # with vs without RAG, 12 API runs (~$1-1.50)
 python -m pmgen.attack T1059.001                     # look up an ATT&CK ID in the official catalogue
 bash scripts/run_phase7.sh                           # 6 runs + ATT&CK review table (~$0.60-0.80)
+bash scripts/run_phase8.sh                           # 6 runs + root cause/impact/timing table (~$0.75)
+python -m pmgen.verify reports/phase8/               # re-check saved reports, no API call
 ```
 
 ## Running the LLM step
@@ -76,11 +92,13 @@ src/pmgen/postmortem.py     Generate + render the Markdown postmortem
 src/pmgen/kb.py            Knowledge base: section chunking + BM25 retrieval
 src/pmgen/abtest.py        Summarise with/without-RAG runs
 src/pmgen/attack.py        MITRE ATT&CK catalogue lookups and ID checks
+src/pmgen/verify.py        Independent re-check of a saved report against the evidence
 src/pmgen/provenance.py   Resolve "file / row N" back to the source record
 src/pmgen/samples.py      Load bundled incidents
 data/incidents/INC-*/     Evidence files + ground_truth.json
 docs/architecture.md      Design, pipeline diagram, roadmap
-tests/                    Schema rules + ground-truth consistency
+docs/sample_reports/      Real generated reports, one folder per phase
+tests/                    302 tests: schema rules, validator, verifier, scoring
 ```
 
 See `docs/architecture.md` for the design and `docs/results.md` for real-model results.
