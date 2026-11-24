@@ -12,6 +12,7 @@ dependencies = ["pydantic>=2.6"]
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 llm = ["anthropic>=2.12"]
+app = ["streamlit>=1.40", "plotly>=5.20"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

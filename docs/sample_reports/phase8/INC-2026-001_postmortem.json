@@ -1,0 +1,1093 @@
+{
+  "incident_id": "INC-2026-001",
+  "title": "INC-2026-001: j.patel mailbox compromise after look-alike login phishing, with external email forwarding",
+  "category": "credential_compromise",
+  "severity": "SEV2",
+  "severity_rationale": "The j.patel account was confirmed compromised, and the attacker created an inbox rule that forwarded 3 emails externally (analyst_notes.txt line 6). The account was contained. The evidence does not confirm large-scale sensitive data exposure. SharePoint access was not checked (analyst_notes.txt line 10).",
+  "classification_confidence": 0.8,
+  "executive_summary": "A phishing email with a look-alike login link was delivered to j.patel, and j.patel's host then browsed to the page and sent a POST to it. Credentials were probably captured by the fake page. Exchange Online and OfficeHome sign-ins from a foreign IP using a scripted user agent followed within minutes. The attacker created inbox rule 'sync', and 3 emails were forwarded to an external address before the rule was removed. The content and sensitivity of those emails are unknown. The root cause was that MFA was not enforced for j.patel. The account had been excluded from conditional access during the 2025 migration and the exception was never removed. The gateway rated the phishing message clean, and the impossible-travel alert had not been triaged when the responder picked up the forwarding-rule alert. Sessions were revoked, the password was reset, the rule was removed and the phishing message was purged from 14 mailboxes. Possible SharePoint access has not been checked.",
+  "what_happened": [
+    {
+      "statement": "Before the attack, j.patel signed in to Exchange Online from the company London VPN egress without MFA being required.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 1",
+          "excerpt": "\"mfa_required\": \"false\""
+        },
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 11",
+          "excerpt": "198.51.100.7 is our London VPN egress"
+        }
+      ]
+    },
+    {
+      "statement": "A phishing email from a look-alike helpdesk sender, with a look-alike login link, was delivered to j.patel and a.khan. The gateway verdict was clean.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "email_gateway.csv",
+          "locator": "row 1",
+          "excerpt": "it-support@micros0ft-helpdesk.test"
+        },
+        {
+          "file": "email_gateway.csv",
+          "locator": "row 2",
+          "excerpt": "\"action\": \"delivered\""
+        }
+      ]
+    },
+    {
+      "statement": "Host LT-OPS-114, used by j.patel, loaded the look-alike reset page (GET, HTTP 200) and then sent a POST to its /submit endpoint.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "https://login-micros0ft.test/reset?u=jpatel"
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 2",
+          "excerpt": "https://login-micros0ft.test/submit"
+        }
+      ]
+    },
+    {
+      "statement": "j.patel's credentials were probably captured by the fake page. About three minutes after the POST, a successful Exchange Online sign-in came from an NL IP with a scripted user agent and no MFA required. The captured credentials are not directly shown in the records.",
+      "certainty": "probable",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 2",
+          "excerpt": "\"method\": \"POST\""
+        },
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 2",
+          "excerpt": "python-requests/2.31"
+        }
+      ]
+    },
+    {
+      "statement": "The attacker IP signed in successfully to Exchange Online and OfficeHome as j.patel, and MFA was not required.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 2",
+          "excerpt": "\"src_ip\": \"203.0.113.45\""
+        },
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 3",
+          "excerpt": "\"app\": \"OfficeHome\""
+        }
+      ]
+    },
+    {
+      "statement": "SIEM raised an impossible-travel alert and then a high-severity alert for an external forwarding rule 'sync', created from the attacker IP.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "siem_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "\"rule\": \"Impossible travel\""
+        },
+        {
+          "file": "siem_alerts.json",
+          "locator": "alerts[1]",
+          "excerpt": "created from 203.0.113.45"
+        }
+      ]
+    },
+    {
+      "statement": "Message trace showed 3 emails were forwarded to the external address before the rule was removed.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 6",
+          "excerpt": "3 emails forwarded to mailbox-sync@exfil-drop.test before removal"
+        }
+      ]
+    },
+    {
+      "statement": "Responders revoked sessions, reset the password with phone confirmation from the user, removed the inbox rule and purged the phishing message from 14 mailboxes.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 4",
+          "excerpt": "Revoked all active sessions for j.patel."
+        },
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 5",
+          "excerpt": "Reset password for j.patel and confirmed with user by phone."
+        },
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 7",
+          "excerpt": "Purged phishing message from 14 mailboxes."
+        }
+      ]
+    },
+    {
+      "statement": "A further sign-in attempt from the attacker IP failed after sessions had been revoked. The records do not state why it failed.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 4",
+          "excerpt": "\"result\": \"failure\""
+        }
+      ]
+    },
+    {
+      "statement": "a.khan received the phishing message, but the proxy shows no click.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 7",
+          "excerpt": "a.khan received it but proxy shows no click"
+        }
+      ]
+    },
+    {
+      "statement": "Whether the attacker accessed SharePoint is not determined, because it was not checked.",
+      "certainty": "unknown",
+      "evidence": []
+    }
+  ],
+  "key_event_ids": [
+    "EV002",
+    "EV004",
+    "EV005",
+    "EV007",
+    "EV009",
+    "EV010",
+    "EV011",
+    "EV012",
+    "EV013",
+    "EV015"
+  ],
+  "indicators": [
+    {
+      "value": "203.0.113.45",
+      "entity_type": "ip",
+      "first_seen": {
+        "file": "auth_logs.csv",
+        "locator": "row 2",
+        "excerpt": "203.0.113.45"
+      }
+    },
+    {
+      "value": "mailbox-sync@exfil-drop.test",
+      "entity_type": "email",
+      "first_seen": {
+        "file": "analyst_notes.txt",
+        "locator": "line 6",
+        "excerpt": "mailbox-sync@exfil-drop.test"
+      }
+    },
+    {
+      "value": "exfil-drop.test",
+      "entity_type": "domain",
+      "first_seen": {
+        "file": "analyst_notes.txt",
+        "locator": "line 6",
+        "excerpt": "exfil-drop.test"
+      }
+    },
+    {
+      "value": "login-micros0ft.test",
+      "entity_type": "domain",
+      "first_seen": {
+        "file": "email_gateway.csv",
+        "locator": "row 1",
+        "excerpt": "login-micros0ft.test"
+      }
+    },
+    {
+      "value": "micros0ft-helpdesk.test",
+      "entity_type": "domain",
+      "first_seen": {
+        "file": "email_gateway.csv",
+        "locator": "row 1",
+        "excerpt": "micros0ft-helpdesk.test"
+      }
+    },
+    {
+      "value": "it-support@micros0ft-helpdesk.test",
+      "entity_type": "email",
+      "first_seen": {
+        "file": "email_gateway.csv",
+        "locator": "row 1",
+        "excerpt": "it-support@micros0ft-helpdesk.test"
+      }
+    },
+    {
+      "value": "https://login-micros0ft.test/reset?u=jpatel",
+      "entity_type": "url",
+      "first_seen": {
+        "file": "email_gateway.csv",
+        "locator": "row 1",
+        "excerpt": "https://login-micros0ft.test/reset?u=jpatel"
+      }
+    },
+    {
+      "value": "https://login-micros0ft.test/reset?u=akhan",
+      "entity_type": "url",
+      "first_seen": {
+        "file": "email_gateway.csv",
+        "locator": "row 2",
+        "excerpt": "https://login-micros0ft.test/reset?u=akhan"
+      }
+    },
+    {
+      "value": "https://login-micros0ft.test/submit",
+      "entity_type": "url",
+      "first_seen": {
+        "file": "proxy_logs.csv",
+        "locator": "row 2",
+        "excerpt": "https://login-micros0ft.test/submit"
+      }
+    }
+  ],
+  "attack": [
+    {
+      "technique_id": "T1566.002",
+      "technique_name": "Phishing: Spearphishing Link",
+      "tactic": "initial-access",
+      "evidence": [
+        {
+          "file": "email_gateway.csv",
+          "locator": "row 1",
+          "excerpt": "https://login-micros0ft.test/reset?u=jpatel"
+        },
+        {
+          "file": "email_gateway.csv",
+          "locator": "row 2",
+          "excerpt": "\"action\": \"delivered\""
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "A phishing email with a link to a look-alike login page was delivered to j.patel and a.khan."
+    },
+    {
+      "technique_id": "T1078.004",
+      "technique_name": "Valid Accounts: Cloud Accounts",
+      "tactic": "initial-access, persistence, privilege-escalation, stealth",
+      "evidence": [
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 2",
+          "excerpt": "\"src_ip\": \"203.0.113.45\""
+        },
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 3",
+          "excerpt": "\"result\": \"success\""
+        }
+      ],
+      "confidence": 0.7,
+      "certainty": "probable",
+      "rationale": "The attacker signed in to cloud services (Exchange Online, OfficeHome) as j.patel from an external IP without MFA, which suggests valid credentials were used."
+    },
+    {
+      "technique_id": "T1114.003",
+      "technique_name": "Email Collection: Email Forwarding Rule",
+      "tactic": "collection",
+      "evidence": [
+        {
+          "file": "siem_alerts.json",
+          "locator": "alerts[1]",
+          "excerpt": "Rule 'sync' forwards messages containing 'invoice' to mailbox-sync@exfil-drop.test"
+        },
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 6",
+          "excerpt": "3 emails forwarded to mailbox-sync@exfil-drop.test before removal"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "An inbox rule forwarded messages to an external address, and 3 emails were forwarded."
+    }
+  ],
+  "attack_catalog": "Enterprise ATT&CK matrix modified 2026-07-31 (ATT&CK spec 3.3.0)",
+  "immediate_cause": {
+    "statement": "j.patel opened the look-alike login page and submitted data to it, which probably gave the attacker valid credentials.",
+    "certainty": "probable",
+    "evidence": [
+      {
+        "file": "proxy_logs.csv",
+        "locator": "row 1",
+        "excerpt": "https://login-micros0ft.test/reset?u=jpatel"
+      },
+      {
+        "file": "proxy_logs.csv",
+        "locator": "row 2",
+        "excerpt": "https://login-micros0ft.test/submit"
+      }
+    ]
+  },
+  "root_cause": {
+    "statement": "MFA was not enforced for j.patel. The account was excluded from the conditional access policy during the 2025 migration and the exception was never removed, so a password alone was enough to sign in.",
+    "certainty": "confirmed",
+    "evidence": [
+      {
+        "file": "analyst_notes.txt",
+        "locator": "line 8",
+        "excerpt": "MFA was not enforced for j.patel"
+      },
+      {
+        "file": "analyst_notes.txt",
+        "locator": "line 8",
+        "excerpt": "the exception was never removed"
+      }
+    ]
+  },
+  "contributing_factors": [
+    {
+      "statement": "The email gateway rated the phishing message clean and delivered it. The look-alike domain had been registered 2 days earlier.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 9",
+          "excerpt": "the email gateway rated the phishing message clean"
+        },
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 9",
+          "excerpt": "the look-alike domain was registered 2 days earlier"
+        }
+      ]
+    },
+    {
+      "statement": "The proxy allowed access to the uncategorized look-alike domain (HTTP 200 on GET).",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "\"category\": \"uncategorized\""
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "\"status\": \"200\""
+        }
+      ]
+    },
+    {
+      "statement": "The impossible-travel alert AL-5521 was still untriaged when the responder picked up AL-5527.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 3",
+          "excerpt": "AL-5521 had not been triaged yet"
+        }
+      ]
+    }
+  ],
+  "impact": {
+    "systems_involved": [
+      "Exchange Online",
+      "OfficeHome",
+      "LT-OPS-114"
+    ],
+    "accounts_involved": [
+      "j.patel"
+    ],
+    "data_affected": {
+      "statement": "3 emails from j.patel's mailbox were forwarded to an external address. The rule targeted messages containing 'invoice'. The content and sensitivity of the forwarded emails are not recorded, and SharePoint access was not checked.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 6",
+          "excerpt": "3 emails forwarded to mailbox-sync@exfil-drop.test before removal"
+        },
+        {
+          "file": "siem_alerts.json",
+          "locator": "alerts[1]",
+          "excerpt": "forwards messages containing 'invoice'"
+        }
+      ]
+    },
+    "operational_impact": {
+      "statement": "Operational impact is not stated in the evidence.",
+      "certainty": "unknown",
+      "evidence": []
+    },
+    "business_impact": {
+      "statement": "Business and financial impact is not stated in the evidence.",
+      "certainty": "unknown",
+      "evidence": []
+    }
+  },
+  "response": {
+    "milestones": {
+      "attack_start": {
+        "event_id": "EV002",
+        "timestamp": "2026-10-06T09:14:02Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "email_gateway.csv",
+            "locator": "row 1",
+            "excerpt": "2026-10-06T09:14:02Z"
+          }
+        ]
+      },
+      "first_detection": {
+        "event_id": "EV009",
+        "timestamp": "2026-10-06T09:24:00Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "siem_alerts.json",
+            "locator": "alerts[0]",
+            "excerpt": "2026-10-06T09:24:00Z"
+          }
+        ]
+      },
+      "response_start": {
+        "event_id": "EV011",
+        "timestamp": "2026-10-06T09:52:00Z",
+        "time_basis": "date_inferred",
+        "sources": [
+          {
+            "file": "analyst_notes.txt",
+            "locator": "line 3",
+            "excerpt": "09:52"
+          }
+        ]
+      },
+      "containment": {
+        "event_id": "EV012",
+        "timestamp": "2026-10-06T09:58:00Z",
+        "time_basis": "date_inferred",
+        "sources": [
+          {
+            "file": "analyst_notes.txt",
+            "locator": "line 4",
+            "excerpt": "09:58"
+          }
+        ]
+      }
+    },
+    "durations": [
+      {
+        "name": "time_to_detect",
+        "start": "attack_start",
+        "end": "first_detection",
+        "seconds": 598,
+        "approximate": false
+      },
+      {
+        "name": "time_to_respond",
+        "start": "first_detection",
+        "end": "response_start",
+        "seconds": 1680,
+        "approximate": true
+      },
+      {
+        "name": "time_to_contain",
+        "start": "first_detection",
+        "end": "containment",
+        "seconds": 2040,
+        "approximate": true
+      },
+      {
+        "name": "dwell_time",
+        "start": "attack_start",
+        "end": "containment",
+        "seconds": 2638,
+        "approximate": true
+      }
+    ]
+  },
+  "detection_gaps": [
+    {
+      "statement": "The email gateway rated the phishing message clean, so the message reached users and was not blocked or flagged.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 9",
+          "excerpt": "the email gateway rated the phishing message clean"
+        },
+        {
+          "file": "email_gateway.csv",
+          "locator": "row 1",
+          "excerpt": "\"verdict\": \"clean\""
+        }
+      ]
+    },
+    {
+      "statement": "The impossible-travel alert AL-5521 had not been triaged when the responder started on the later forwarding-rule alert, so the first alert did not trigger a response.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 3",
+          "excerpt": "AL-5521 had not been triaged yet"
+        },
+        {
+          "file": "siem_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "\"rule\": \"Impossible travel\""
+        }
+      ]
+    },
+    {
+      "statement": "Sign-ins from a foreign IP with a scripted user agent succeeded with no MFA challenge and no block. Detection relied on after-the-fact alerts.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 2",
+          "excerpt": "python-requests/2.31"
+        },
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 2",
+          "excerpt": "\"result\": \"success\""
+        }
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "area": "governance",
+      "lesson": "Migration-time MFA exceptions need an owner and an expiry, and must be removed when the migration ends. A stale exception left j.patel exposed to a password-only sign-in.",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 8",
+          "excerpt": "the exception was never removed"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "3",
+          "title": "Exceptions to MFA and conditional access",
+          "excerpt": "Exceptions created during migrations must be removed when the migration ends."
+        }
+      ]
+    },
+    {
+      "area": "technology",
+      "lesson": "Password-only access from outside the corporate network must not be possible. The attacker signed in from an external IP with no MFA requirement.",
+      "evidence": [
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 2",
+          "excerpt": "\"mfa_required\": \"false\""
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "2",
+          "title": "Multi-factor authentication",
+          "excerpt": "A password alone must never be enough to sign in from outside the corporate network."
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Alerts that match playbook triggers, such as impossible travel, need to be triaged even when a higher-severity alert arrives. The medium alert was left untriaged.",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 3",
+          "excerpt": "AL-5521 had not been triaged yet"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "PB-01",
+          "section": "1",
+          "title": "Triggers",
+          "excerpt": "Impossible travel, sign-in from a new country with a scripted user agent, new inbox forwarding rules"
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Scoping must cover file access in collaboration platforms for the whole period of attacker access. SharePoint was left unchecked.",
+      "evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 10",
+          "excerpt": "Not checked yet."
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "PB-01",
+          "section": "3",
+          "title": "Scoping",
+          "excerpt": "file access in collaboration platforms"
+        }
+      ]
+    }
+  ],
+  "corrective_actions": [
+    {
+      "recommendation": "Enforce MFA for j.patel and confirm it is registered to the real user. Audit all conditional-access exceptions, remove expired or migration-era ones, and require an owner and an expiry date of 90 days or less.",
+      "priority": "critical",
+      "reason": "The root cause was an MFA exclusion left over from the 2025 migration.",
+      "supporting_evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 8",
+          "excerpt": "MFA was not enforced for j.patel"
+        }
+      ],
+      "owner_team": "IAM",
+      "timeframe": "Immediately for j.patel; exception audit within 7 days",
+      "expected_benefit": "A stolen password alone can no longer give access to the mailbox.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "3",
+          "title": "Exceptions to MFA and conditional access",
+          "excerpt": "The IAM team reviews all exceptions monthly and removes expired ones."
+        },
+        {
+          "doc_id": "PB-01",
+          "section": "2",
+          "title": "Containment",
+          "excerpt": "confirm MFA is enforced and registered to the real user"
+        }
+      ]
+    },
+    {
+      "recommendation": "Complete scoping: review SharePoint and OneDrive file access and mailbox audit logs for the full attacker-access window. Check proxy logs for clicks by all 14 phishing recipients, not only a.khan.",
+      "priority": "high",
+      "reason": "SharePoint access is unchecked, and the evidence records a click check only for a.khan.",
+      "supporting_evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 10",
+          "excerpt": "Not checked yet."
+        },
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 7",
+          "excerpt": "Purged phishing message from 14 mailboxes."
+        }
+      ],
+      "owner_team": "SOC / Incident Response",
+      "timeframe": "Within 2 days",
+      "expected_benefit": "Establishes the true extent of data exposure and any other victims.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-01",
+          "section": "3",
+          "title": "Scoping",
+          "excerpt": "Identify every recipient of the phishing message and check proxy logs for clicks."
+        }
+      ]
+    },
+    {
+      "recommendation": "Block the phishing domains at the email and proxy layers, and block the attacker IP.",
+      "priority": "high",
+      "reason": "The attacker IP made another sign-in attempt after revocation, and the phishing domain was reachable through the proxy. The records do not show any block being applied.",
+      "supporting_evidence": [
+        {
+          "file": "auth_logs.csv",
+          "locator": "row 4",
+          "excerpt": "\"src_ip\": \"203.0.113.45\""
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "\"status\": \"200\""
+        }
+      ],
+      "owner_team": "Network Security / Messaging",
+      "timeframe": "Within 24 hours",
+      "expected_benefit": "Stops further use of the phishing infrastructure and repeat sign-in attempts.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-01",
+          "section": "4",
+          "title": "Eradication and recovery",
+          "excerpt": "block the phishing domains at email and proxy layers"
+        },
+        {
+          "doc_id": "PB-01",
+          "section": "2",
+          "title": "Containment",
+          "excerpt": "block the attacker IPs"
+        }
+      ]
+    },
+    {
+      "recommendation": "Tune email gateway and proxy handling of newly registered look-alike and uncategorized domains, for example by warning or blocking.",
+      "priority": "medium",
+      "reason": "A look-alike domain registered 2 days earlier was rated clean and delivered, and the proxy allowed the visit.",
+      "supporting_evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 9",
+          "excerpt": "the look-alike domain was registered 2 days earlier"
+        },
+        {
+          "file": "email_gateway.csv",
+          "locator": "row 1",
+          "excerpt": "\"verdict\": \"clean\""
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "\"category\": \"uncategorized\""
+        }
+      ],
+      "owner_team": "Messaging / Network Security",
+      "timeframe": "Within 30 days",
+      "expected_benefit": "Fewer phishing messages reach users, and fewer users reach the phishing pages.",
+      "policy_refs": []
+    },
+    {
+      "recommendation": "Change SOC queue handling so that alerts matching playbook triggers (impossible travel, scripted user agent, new forwarding rules) are triaged together for the same user. Consider correlating them into a single high-severity case.",
+      "priority": "medium",
+      "reason": "The impossible-travel alert was untriaged while the responder worked on the forwarding-rule alert.",
+      "supporting_evidence": [
+        {
+          "file": "analyst_notes.txt",
+          "locator": "line 3",
+          "excerpt": "AL-5521 had not been triaged yet"
+        },
+        {
+          "file": "siem_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "Sign-in from NL (203.0.113.45) 27 minutes after sign-in from GB"
+        }
+      ],
+      "owner_team": "SOC",
+      "timeframe": "Within 30 days",
+      "expected_benefit": "Earlier recognition of account takeover and faster containment.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-01",
+          "section": "1",
+          "title": "Triggers",
+          "excerpt": "Impossible travel, sign-in from a new country with a scripted user agent, new inbox forwarding rules"
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Did the attacker access SharePoint or other data? This was not checked (analyst_notes.txt line 10).",
+    "Were credentials actually entered on the fake page? Only a POST with HTTP 302 is recorded (proxy_logs.csv row 2).",
+    "What did the 3 forwarded emails contain, and were more messages forwarded or read in other ways?",
+    "Why did the 10:01 sign-in from the attacker IP fail, and was the attacker IP blocked?",
+    "Did any of the other phishing recipients, besides a.khan, click the link? Only a.khan's proxy check is recorded (analyst_notes.txt line 7).",
+    "How many other accounts have stale MFA or conditional-access exclusions?"
+  ],
+  "remaining_risks": [
+    "Unreviewed SharePoint and OneDrive access by the attacker may mean wider data exposure than confirmed.",
+    "Other accounts with stale MFA exceptions remain exposed to password-only sign-in.",
+    "The phishing and exfiltration domains and the attacker IP are not recorded as blocked.",
+    "Other recipients of the phishing message may have interacted with it."
+  ],
+  "timeline": {
+    "incident_id": "INC-2026-001",
+    "events": [
+      {
+        "event_id": "EV001",
+        "timestamp": "2026-10-06T08:55:31Z",
+        "time_basis": "exact",
+        "description": "result=success; app=Exchange Online; user=j.patel; src_ip=198.51.100.7",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "auth_logs.csv",
+            "locator": "row 1",
+            "excerpt": "2026-10-06T08:55:31Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV002",
+        "timestamp": "2026-10-06T09:14:02Z",
+        "time_basis": "exact",
+        "description": "subject=Action required: password expires today; action=delivered; url=https://login-micros0ft.test/reset?u=jpatel; recipient=j.patel@contoso.example",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "email_gateway.csv",
+            "locator": "row 1",
+            "excerpt": "2026-10-06T09:14:02Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV003",
+        "timestamp": "2026-10-06T09:14:05Z",
+        "time_basis": "exact",
+        "description": "subject=Action required: password expires today; action=delivered; url=https://login-micros0ft.test/reset?u=akhan; recipient=a.khan@contoso.example",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "email_gateway.csv",
+            "locator": "row 2",
+            "excerpt": "2026-10-06T09:14:05Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV004",
+        "timestamp": "2026-10-06T09:18:40Z",
+        "time_basis": "exact",
+        "description": "method=GET; url=https://login-micros0ft.test/reset?u=jpatel; user=j.patel; src_host=LT-OPS-114",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 1",
+            "excerpt": "2026-10-06T09:18:40Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV005",
+        "timestamp": "2026-10-06T09:19:02Z",
+        "time_basis": "exact",
+        "description": "method=POST; url=https://login-micros0ft.test/submit; user=j.patel; src_host=LT-OPS-114",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 2",
+            "excerpt": "2026-10-06T09:19:02Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV006",
+        "timestamp": "2026-10-06T09:20:11Z",
+        "time_basis": "exact",
+        "description": "subject=October product update; action=delivered; url=https://vendor.example/news; recipient=j.patel@contoso.example",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "email_gateway.csv",
+            "locator": "row 3",
+            "excerpt": "2026-10-06T09:20:11Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV007",
+        "timestamp": "2026-10-06T09:22:15Z",
+        "time_basis": "exact",
+        "description": "result=success; app=Exchange Online; user=j.patel; src_ip=203.0.113.45",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "auth_logs.csv",
+            "locator": "row 2",
+            "excerpt": "2026-10-06T09:22:15Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV008",
+        "timestamp": "2026-10-06T09:23:02Z",
+        "time_basis": "exact",
+        "description": "result=success; app=OfficeHome; user=j.patel; src_ip=203.0.113.45",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "auth_logs.csv",
+            "locator": "row 3",
+            "excerpt": "2026-10-06T09:23:02Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV009",
+        "timestamp": "2026-10-06T09:24:00Z",
+        "time_basis": "exact",
+        "description": "rule=Impossible travel; user=j.patel; severity=medium",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "siem_alerts.json",
+            "locator": "alerts[0]",
+            "excerpt": "2026-10-06T09:24:00Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV010",
+        "timestamp": "2026-10-06T09:31:10Z",
+        "time_basis": "exact",
+        "description": "rule=New inbox forwarding rule to external address; user=j.patel; severity=high",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "siem_alerts.json",
+            "locator": "alerts[1]",
+            "excerpt": "2026-10-06T09:31:10Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV011",
+        "timestamp": "2026-10-06T09:52:00Z",
+        "time_basis": "date_inferred",
+        "description": "09:52 Picked up AL-5527 from the queue. AL-5521 had not been triaged yet.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "analyst_notes.txt",
+            "locator": "line 3",
+            "excerpt": "09:52"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-10-06 is the only date in the evidence; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV012",
+        "timestamp": "2026-10-06T09:58:00Z",
+        "time_basis": "date_inferred",
+        "description": "09:58 Revoked all active sessions for j.patel.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "analyst_notes.txt",
+            "locator": "line 4",
+            "excerpt": "09:58"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-10-06 is the only date in the evidence; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV013",
+        "timestamp": "2026-10-06T10:01:44Z",
+        "time_basis": "exact",
+        "description": "result=failure; app=Exchange Online; user=j.patel; src_ip=203.0.113.45",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "auth_logs.csv",
+            "locator": "row 4",
+            "excerpt": "2026-10-06T10:01:44Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV014",
+        "timestamp": "2026-10-06T10:05:00Z",
+        "time_basis": "date_inferred",
+        "description": "10:05 Reset password for j.patel and confirmed with user by phone.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "analyst_notes.txt",
+            "locator": "line 5",
+            "excerpt": "10:05"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-10-06 is the only date in the evidence; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV015",
+        "timestamp": "2026-10-06T10:12:00Z",
+        "time_basis": "date_inferred",
+        "description": "10:12 Removed inbox rule 'sync'. Message trace shows 3 emails forwarded to mailbox-sync@exfil-drop.test before removal.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "analyst_notes.txt",
+            "locator": "line 6",
+            "excerpt": "10:12"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-10-06 is the only date in the evidence; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV016",
+        "timestamp": "2026-10-06T10:40:00Z",
+        "time_basis": "date_inferred",
+        "description": "10:40 Purged phishing message from 14 mailboxes. a.khan received it but proxy shows no click.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "analyst_notes.txt",
+            "locator": "line 7",
+            "excerpt": "10:40"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-10-06 is the only date in the evidence; timezone assumed UTC"
+      }
+    ],
+    "undated": [],
+    "warnings": []
+  },
+  "validation_log": [
+    "attempt 1: 0 validation problem(s)"
+  ],
+  "kb_used": [
+    "PB-01#3",
+    "PB-01#2",
+    "PB-01#1",
+    "POL-07#3",
+    "PB-01#4",
+    "PIR-2025-014#1",
+    "POL-07#2",
+    "PB-04#1"
+  ],
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-24T09:00:54.489194Z",
+  "file_hashes": {
+    "analyst_notes.txt": "8780237fd87d750f4044110145655aee9007a91df7064dec9ea5b85c25060a3d",
+    "auth_logs.csv": "38e6f9c3142274cda6cfedbfebfcb9b0795bb254d6a40448045446a8e7ecf330",
+    "email_gateway.csv": "ae827d6b29d1798f666e7e0e30fd53767e33c8a7caa59b007a50548983b8c36d",
+    "proxy_logs.csv": "7392fb696c84ccc4c56fbe001c7ea8e7c2315fc48e47bb3dfdf17852b037ef27",
+    "siem_alerts.json": "8d1524bf2fcdf2a4dcc888199117e7c07669bb1429cf07b624c5e84835bdf078"
+  }
+}

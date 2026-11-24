@@ -1,0 +1,4 @@
+# Used by Streamlit Community Cloud. The app adds src/ to the path itself.
+pydantic>=2.6
+streamlit>=1.40
+plotly>=5.20

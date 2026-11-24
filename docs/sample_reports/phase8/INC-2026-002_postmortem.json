@@ -1,0 +1,1013 @@
+{
+  "incident_id": "INC-2026-002",
+  "title": "INC-2026-002: Macro-enabled document leads to PowerShell loader and DLL beaconing on Finance workstation WS-FIN-022",
+  "category": "malware",
+  "severity": "SEV2",
+  "severity_rationale": "Host compromise with attacker code execution and repeated outbound contact to an attacker domain is confirmed on WS-FIN-022 (user m.okafor). The host was isolated and reimaged. No confirmed exposure of sensitive data at scale: EDR shows no internal connections in 24h, but domain controller logs were not reviewed and data impact is unknown.",
+  "classification_confidence": 0.8,
+  "executive_summary": "A macro-enabled document from the internet was opened on WS-FIN-022 by m.okafor, and Word then launched hidden, encoded PowerShell. PowerShell fetched a script from cdn-update.badcdn.test, dropped upd.dll and ran it with rundll32. That process then contacted the same domain repeatedly, which probably indicates command-and-control. The Finance OU was exempt from the macro-blocking policy, which is the root cause. The attachment's delivery path (for example email) is not confirmed. EDR on Finance workstations was detect-only and the email gateway does not sandbox .docm files, so nothing stopped the chain. The high-severity EDR alert sat in the queue from 08:47 until 11:15 because of analyst backlog. The host was isolated at 11:22. The host was reimaged and the hashes and domain were blocked. Data impact and lateral movement are not confirmed because domain controller logs have not been reviewed.",
+  "what_happened": [
+    {
+      "statement": "User m.okafor opened Invoice_Oct.docm in Word on WS-FIN-022. The file carried an internet mark-of-the-web.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "edr_events.json",
+          "locator": "events[0]",
+          "excerpt": "Invoice_Oct.docm"
+        },
+        {
+          "file": "edr_events.json",
+          "locator": "events[0]",
+          "excerpt": "\"motw\": \"internet\""
+        }
+      ]
+    },
+    {
+      "statement": "About 20 seconds later WINWORD.EXE spawned PowerShell with hidden-window, no-profile, encoded-command arguments. EDR raised high-severity alert EDR-3301 but only detected, not blocked.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "edr_events.json",
+          "locator": "events[1]",
+          "excerpt": "Office application spawned PowerShell"
+        },
+        {
+          "file": "edr_events.json",
+          "locator": "events[1]",
+          "excerpt": "\"action\": \"detected\""
+        }
+      ]
+    },
+    {
+      "statement": "PowerShell connected to cdn-update.badcdn.test and retrieved s2.ps1 (HTTP 200, about 18 KB inbound).",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "http://cdn-update.badcdn.test/s2.ps1"
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "\"bytes_in\": \"18233\""
+        }
+      ]
+    },
+    {
+      "statement": "PowerShell wrote upd.dll to the user's AppData\\Roaming folder, then launched it via rundll32.exe.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "edr_events.json",
+          "locator": "events[3]",
+          "excerpt": "upd.dll"
+        },
+        {
+          "file": "edr_events.json",
+          "locator": "events[4]",
+          "excerpt": "upd.dll,Start"
+        }
+      ]
+    },
+    {
+      "statement": "rundll32.exe made repeated small HTTPS requests to cdn-update.badcdn.test/api/c at 08:49 and 08:50, and again at 11:21, just before isolation. This pattern is consistent with command-and-control beaconing, but the proxy logs do not show what the traffic contained.",
+      "certainty": "probable",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 2",
+          "excerpt": "https://cdn-update.badcdn.test/api/c"
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 3",
+          "excerpt": "2026-10-21T08:50:00Z"
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 4",
+          "excerpt": "2026-10-21T11:21:00Z"
+        }
+      ]
+    },
+    {
+      "statement": "A SOC analyst picked up EDR-3301 at 11:15. The alert had waited in the queue since 08:47 amid a backlog of 40 alerts and two analysts on shift.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 3",
+          "excerpt": "Alert had been in the queue since 08:47"
+        },
+        {
+          "file": "ticket.txt",
+          "locator": "line 3",
+          "excerpt": "backlog of 40 alerts"
+        }
+      ]
+    },
+    {
+      "statement": "WS-FIN-022 was isolated via the EDR console at 11:22. Both file hashes and the domain were blocked at EDR and proxy at 11:40. The host was reimaged and returned to the user the next day.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 4",
+          "excerpt": "Isolated WS-FIN-022 from the network via EDR console"
+        },
+        {
+          "file": "ticket.txt",
+          "locator": "line 5",
+          "excerpt": "Blocked both file hashes and cdn-update.badcdn.test"
+        },
+        {
+          "file": "ticket.txt",
+          "locator": "line 6",
+          "excerpt": "WS-FIN-022 reimaged and returned to m.okafor"
+        }
+      ]
+    },
+    {
+      "statement": "EDR shows no connections from WS-FIN-022 to other internal hosts in the last 24h. Domain controller logs had not been reviewed at the time of the ticket.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 10",
+          "excerpt": "EDR shows no connections from WS-FIN-022 to other internal hosts in the last 24h"
+        },
+        {
+          "file": "ticket.txt",
+          "locator": "line 10",
+          "excerpt": "Domain controller logs not reviewed yet"
+        }
+      ]
+    }
+  ],
+  "key_event_ids": [
+    "EV001",
+    "EV002",
+    "EV003",
+    "EV005",
+    "EV008",
+    "EV009",
+    "EV010",
+    "EV012"
+  ],
+  "indicators": [
+    {
+      "value": "03d4e4ac1e7906c11788372f9a48a2a1b37a8c3a93b19f2a0d79c3a02ac4745c",
+      "entity_type": "sha256",
+      "first_seen": {
+        "file": "edr_events.json",
+        "locator": "events[0]",
+        "excerpt": "03d4e4ac1e7906c11788372f9a48a2a1b37a8c3a93b19f2a0d79c3a02ac4745c"
+      }
+    },
+    {
+      "value": "deb8fb893310bbdb9ae77981d7ff5659e376d094078d88a791777e4faeda45a4",
+      "entity_type": "sha256",
+      "first_seen": {
+        "file": "edr_events.json",
+        "locator": "events[3]",
+        "excerpt": "deb8fb893310bbdb9ae77981d7ff5659e376d094078d88a791777e4faeda45a4"
+      }
+    },
+    {
+      "value": "203.0.113.80",
+      "entity_type": "ip",
+      "first_seen": {
+        "file": "proxy_logs.csv",
+        "locator": "row 1",
+        "excerpt": "203.0.113.80"
+      }
+    },
+    {
+      "value": "cdn-update.badcdn.test",
+      "entity_type": "domain",
+      "first_seen": {
+        "file": "edr_events.json",
+        "locator": "events[2]",
+        "excerpt": "cdn-update.badcdn.test"
+      }
+    },
+    {
+      "value": "http://cdn-update.badcdn.test/s2.ps1",
+      "entity_type": "url",
+      "first_seen": {
+        "file": "edr_events.json",
+        "locator": "events[2]",
+        "excerpt": "http://cdn-update.badcdn.test/s2.ps1"
+      }
+    },
+    {
+      "value": "https://cdn-update.badcdn.test/api/c",
+      "entity_type": "url",
+      "first_seen": {
+        "file": "proxy_logs.csv",
+        "locator": "row 2",
+        "excerpt": "https://cdn-update.badcdn.test/api/c"
+      }
+    }
+  ],
+  "attack": [
+    {
+      "technique_id": "T1204.002",
+      "technique_name": "User Execution: Malicious File",
+      "tactic": "execution",
+      "evidence": [
+        {
+          "file": "edr_events.json",
+          "locator": "events[0]",
+          "excerpt": "Invoice_Oct.docm"
+        },
+        {
+          "file": "edr_events.json",
+          "locator": "events[1]",
+          "excerpt": "Office application spawned PowerShell"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The user opened a macro-enabled Office document from the internet, and Word then spawned PowerShell."
+    },
+    {
+      "technique_id": "T1059.001",
+      "technique_name": "Command and Scripting Interpreter: PowerShell",
+      "tactic": "execution",
+      "evidence": [
+        {
+          "file": "edr_events.json",
+          "locator": "events[1]",
+          "excerpt": "powershell.exe -nop -w hidden -enc <redacted>"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "PowerShell was launched with an encoded command and fetched a remote script."
+    },
+    {
+      "technique_id": "T1564.003",
+      "technique_name": "Hide Artifacts: Hidden Window",
+      "tactic": "stealth",
+      "evidence": [
+        {
+          "file": "edr_events.json",
+          "locator": "events[1]",
+          "excerpt": "-w hidden"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "PowerShell was run with a hidden window."
+    },
+    {
+      "technique_id": "T1105",
+      "technique_name": "Ingress Tool Transfer",
+      "tactic": "command-and-control",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "http://cdn-update.badcdn.test/s2.ps1"
+        },
+        {
+          "file": "edr_events.json",
+          "locator": "events[3]",
+          "excerpt": "upd.dll"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "A script was pulled from an external host, and a DLL was then written to disk by PowerShell."
+    },
+    {
+      "technique_id": "T1218.011",
+      "technique_name": "System Binary Proxy Execution: Rundll32",
+      "tactic": "stealth",
+      "evidence": [
+        {
+          "file": "edr_events.json",
+          "locator": "events[4]",
+          "excerpt": "upd.dll,Start"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The dropped DLL was executed via rundll32.exe."
+    },
+    {
+      "technique_id": "T1071.001",
+      "technique_name": "Application Layer Protocol: Web Protocols",
+      "tactic": "command-and-control",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 2",
+          "excerpt": "https://cdn-update.badcdn.test/api/c"
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 4",
+          "excerpt": "2026-10-21T11:21:00Z"
+        }
+      ],
+      "confidence": 0.7,
+      "certainty": "probable",
+      "rationale": "rundll32 made repeated small HTTPS requests to an attacker domain, consistent with web-protocol C2 beaconing."
+    }
+  ],
+  "attack_catalog": "Enterprise ATT&CK matrix modified 2026-07-31 (ATT&CK spec 3.3.0)",
+  "immediate_cause": {
+    "statement": "The user opened an internet-sourced macro-enabled document (Invoice_Oct.docm), after which Word launched PowerShell. The macro executing is inferred from the Word-to-PowerShell process chain.",
+    "certainty": "probable",
+    "evidence": [
+      {
+        "file": "edr_events.json",
+        "locator": "events[0]",
+        "excerpt": "Invoice_Oct.docm"
+      },
+      {
+        "file": "edr_events.json",
+        "locator": "events[1]",
+        "excerpt": "Office application spawned PowerShell"
+      },
+      {
+        "file": "ticket.txt",
+        "locator": "line 11",
+        "excerpt": "the attachment looked like a real supplier invoice"
+      }
+    ]
+  },
+  "root_cause": {
+    "statement": "The whole Finance OU was excluded from the policy that blocks macros in files from the internet (added in 2024 for a legacy Excel add-in), so the macro document could run.",
+    "certainty": "confirmed",
+    "evidence": [
+      {
+        "file": "ticket.txt",
+        "locator": "line 7",
+        "excerpt": "the Finance OU is excluded from the policy that blocks macros in files from the internet"
+      },
+      {
+        "file": "ticket.txt",
+        "locator": "line 7",
+        "excerpt": "Exclusion added in 2024 for a legacy Excel add-in"
+      }
+    ]
+  },
+  "contributing_factors": [
+    {
+      "statement": "EDR on Finance workstations is in detect-only mode, so the Office-to-PowerShell launch was not blocked.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 8",
+          "excerpt": "EDR policy on Finance workstations is detect-only"
+        },
+        {
+          "file": "edr_events.json",
+          "locator": "meta",
+          "excerpt": "\"policy_mode\": \"detect_only\""
+        }
+      ]
+    },
+    {
+      "statement": "The email gateway does not sandbox .docm attachments. Whether this document arrived by email is not confirmed.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 9",
+          "excerpt": "the email gateway does not sandbox .docm attachments"
+        }
+      ]
+    },
+    {
+      "statement": "The lure looked like a genuine supplier invoice, which made it more likely to be opened.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 11",
+          "excerpt": "the attachment looked like a real supplier invoice"
+        }
+      ]
+    }
+  ],
+  "impact": {
+    "systems_involved": [
+      "WS-FIN-022"
+    ],
+    "accounts_involved": [
+      "m.okafor"
+    ],
+    "data_affected": {
+      "statement": "Not determined. Outbound byte counts in the proxy rows are small, but the evidence does not state what data, if any, was accessed or taken from the workstation.",
+      "certainty": "unknown",
+      "evidence": []
+    },
+    "operational_impact": {
+      "statement": "WS-FIN-022 was isolated, then reimaged and returned to the user the next day.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 6",
+          "excerpt": "WS-FIN-022 reimaged and returned to m.okafor"
+        }
+      ]
+    },
+    "business_impact": {
+      "statement": "Financial or business cost is not stated in the evidence.",
+      "certainty": "unknown",
+      "evidence": []
+    }
+  },
+  "response": {
+    "milestones": {
+      "attack_start": {
+        "event_id": "EV001",
+        "timestamp": "2026-10-21T08:47:10Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "edr_events.json",
+            "locator": "events[0]",
+            "excerpt": "2026-10-21T08:47:10Z"
+          }
+        ]
+      },
+      "first_detection": {
+        "event_id": "EV002",
+        "timestamp": "2026-10-21T08:47:32Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "edr_events.json",
+            "locator": "events[1]",
+            "excerpt": "2026-10-21T08:47:32Z"
+          }
+        ]
+      },
+      "response_start": {
+        "event_id": "EV008",
+        "timestamp": "2026-10-21T11:15:00Z",
+        "time_basis": "date_inferred",
+        "sources": [
+          {
+            "file": "ticket.txt",
+            "locator": "line 3",
+            "excerpt": "11:15"
+          }
+        ]
+      },
+      "containment": {
+        "event_id": "EV010",
+        "timestamp": "2026-10-21T11:22:00Z",
+        "time_basis": "date_inferred",
+        "sources": [
+          {
+            "file": "ticket.txt",
+            "locator": "line 4",
+            "excerpt": "11:22"
+          }
+        ]
+      }
+    },
+    "durations": [
+      {
+        "name": "time_to_detect",
+        "start": "attack_start",
+        "end": "first_detection",
+        "seconds": 22,
+        "approximate": false
+      },
+      {
+        "name": "time_to_respond",
+        "start": "first_detection",
+        "end": "response_start",
+        "seconds": 8848,
+        "approximate": true
+      },
+      {
+        "name": "time_to_contain",
+        "start": "first_detection",
+        "end": "containment",
+        "seconds": 9268,
+        "approximate": true
+      },
+      {
+        "name": "dwell_time",
+        "start": "attack_start",
+        "end": "containment",
+        "seconds": 9290,
+        "approximate": true
+      }
+    ]
+  },
+  "detection_gaps": [
+    {
+      "statement": "The high-severity alert EDR-3301 waited in the queue from 08:47 until 11:15 because of a 40-alert backlog and two analysts on shift. Beaconing continued to 11:21.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 3",
+          "excerpt": "Alert had been in the queue since 08:47"
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 4",
+          "excerpt": "2026-10-21T11:21:00Z"
+        }
+      ]
+    },
+    {
+      "statement": "EDR was detect-only on Finance workstations, so the alert had no automatic blocking effect.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "edr_events.json",
+          "locator": "events[1]",
+          "excerpt": "\"action\": \"detected\""
+        },
+        {
+          "file": "ticket.txt",
+          "locator": "line 8",
+          "excerpt": "so the PowerShell launch was not blocked"
+        }
+      ]
+    },
+    {
+      "statement": "Scoping is incomplete: domain controller logs were not reviewed.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 10",
+          "excerpt": "Domain controller logs not reviewed yet"
+        }
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "area": "governance",
+      "lesson": "Exclusions to the macro-blocking policy must be narrow (signed macros or trusted locations). Excluding a whole OU for a legacy add-in left a standing gap for 2024 onwards.",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 7",
+          "excerpt": "Exclusion added in 2024 for a legacy Excel add-in"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "STD-03",
+          "section": "1",
+          "title": "Office macros",
+          "excerpt": "never a whole organisational unit"
+        }
+      ]
+    },
+    {
+      "area": "technology",
+      "lesson": "Detect-only EDR on high-value Finance endpoints turned a blockable Office-to-PowerShell chain into a multi-hour compromise.",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 8",
+          "excerpt": "EDR policy on Finance workstations is detect-only"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "STD-03",
+          "section": "2",
+          "title": "EDR mode",
+          "excerpt": "Detect-only mode is allowed only during a rollout of at most 14 days."
+        }
+      ]
+    },
+    {
+      "area": "technology",
+      "lesson": "Macro-enabled attachments should be sandboxed or quarantined before reaching users.",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 9",
+          "excerpt": "the email gateway does not sandbox .docm attachments"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "STD-03",
+          "section": "3",
+          "title": "Email attachments",
+          "excerpt": "are detonated in a sandbox before delivery or quarantined"
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "A high-severity alert waited in the queue for hours behind a backlog. The 2025 post-incident review already recorded that alerts waiting behind higher-severity ones delay response, so queue prioritisation and capacity remain a recurring weakness.",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 3",
+          "excerpt": "backlog of 40 alerts"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "PIR-2025-014",
+          "section": "2",
+          "title": "Lessons",
+          "excerpt": "waited behind higher alerts for 40 minutes"
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Scoping must include authentication and domain controller review before closure, as the playbook requires. It was still open at the time of the ticket.",
+      "evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 10",
+          "excerpt": "Domain controller logs not reviewed yet"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "PB-03",
+          "section": "4",
+          "title": "Scoping",
+          "excerpt": "Review domain controller and authentication logs for the user and host"
+        }
+      ]
+    }
+  ],
+  "corrective_actions": [
+    {
+      "recommendation": "Remove the Finance OU exclusion from the macro-blocking policy. If the legacy Excel add-in is still needed, allow only signed macros or specific trusted locations.",
+      "priority": "critical",
+      "reason": "The OU-wide exclusion is the root cause; it allowed an internet-sourced macro document to run.",
+      "supporting_evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 7",
+          "excerpt": "the Finance OU is excluded from the policy that blocks macros in files from the internet"
+        }
+      ],
+      "owner_team": "Endpoint / Desktop Engineering",
+      "timeframe": "1 week",
+      "expected_benefit": "Macro-based initial execution is blocked on Finance workstations.",
+      "policy_refs": [
+        {
+          "doc_id": "STD-03",
+          "section": "1",
+          "title": "Office macros",
+          "excerpt": "never a whole organisational unit"
+        }
+      ]
+    },
+    {
+      "recommendation": "Switch EDR on Finance workstations to prevent (block) mode, and audit all other hosts for detect-only configurations beyond the 14-day rollout allowance.",
+      "priority": "critical",
+      "reason": "Detect-only mode meant the PowerShell launch was alerted on but not stopped.",
+      "supporting_evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 8",
+          "excerpt": "EDR policy on Finance workstations is detect-only"
+        }
+      ],
+      "owner_team": "Security Engineering",
+      "timeframe": "1 week",
+      "expected_benefit": "The Office-to-PowerShell chain is blocked at execution instead of only alerted on.",
+      "policy_refs": [
+        {
+          "doc_id": "STD-03",
+          "section": "2",
+          "title": "EDR mode",
+          "excerpt": "EDR runs in prevent (block) mode on all workstations and servers."
+        }
+      ]
+    },
+    {
+      "recommendation": "Enable sandbox detonation or quarantine of .docm/.xlsm attachments at the email gateway.",
+      "priority": "high",
+      "reason": "The gateway does not sandbox .docm attachments, and this document looked like a legitimate invoice.",
+      "supporting_evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 9",
+          "excerpt": "the email gateway does not sandbox .docm attachments"
+        }
+      ],
+      "owner_team": "Messaging / Email Security",
+      "timeframe": "30 days",
+      "expected_benefit": "Malicious macro documents are stopped or flagged before reaching users.",
+      "policy_refs": [
+        {
+          "doc_id": "STD-03",
+          "section": "3",
+          "title": "Email attachments",
+          "excerpt": "Macro-enabled Office attachments (.docm, .xlsm) are detonated in a sandbox before delivery or quarantined."
+        }
+      ]
+    },
+    {
+      "recommendation": "Complete scoping: review domain controller and authentication logs for m.okafor and WS-FIN-022 and check for credential theft and lateral movement. Search all endpoints for the two hashes and the domain.",
+      "priority": "high",
+      "reason": "Domain controller logs were not reviewed, and EDR evidence alone shows no internal connections. The ticket does not record an enterprise-wide search for the indicators.",
+      "supporting_evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 10",
+          "excerpt": "Domain controller logs not reviewed yet"
+        }
+      ],
+      "owner_team": "SOC / Incident Response",
+      "timeframe": "immediate (before closure)",
+      "expected_benefit": "Confirms or rules out spread and credential exposure before the incident is closed.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-03",
+          "section": "4",
+          "title": "Scoping",
+          "excerpt": "check for lateral movement and credential theft before closing the incident"
+        },
+        {
+          "doc_id": "PB-03",
+          "section": "3",
+          "title": "Blocking",
+          "excerpt": "search all endpoints for the same indicators"
+        }
+      ]
+    },
+    {
+      "recommendation": "Raise the priority of alerts for Office applications spawning PowerShell or other process-chain alerts, and add queue-age escalation so high-severity alerts are not left for hours. Review SOC staffing against alert volume.",
+      "priority": "high",
+      "reason": "A high-severity alert sat for over two hours during a backlog while beaconing continued. The earlier agreed action on alert triage and prioritisation was not enough to prevent this.",
+      "supporting_evidence": [
+        {
+          "file": "ticket.txt",
+          "locator": "line 3",
+          "excerpt": "Alert had been in the queue since 08:47"
+        }
+      ],
+      "owner_team": "SOC Management",
+      "timeframe": "30 days",
+      "expected_benefit": "Shorter time from alert to analyst action and containment.",
+      "policy_refs": [
+        {
+          "doc_id": "PIR-2025-014",
+          "section": "2",
+          "title": "Lessons",
+          "excerpt": "triage alerts for the same user together"
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "How did Invoice_Oct.docm reach the user (email, web download or other)? No email delivery is recorded, so phishing is not confirmed.",
+    "Did the macro itself run? This is inferred from the Word-to-PowerShell process chain and is not directly shown.",
+    "What did the beaconing and the downloaded script do, and was any data accessed or taken from WS-FIN-022? The EDR export does not say.",
+    "Do domain controller and authentication logs show credential use or lateral movement from WS-FIN-022 or m.okafor?",
+    "Do other endpoints, especially in the Finance OU, show the same hashes or contact with cdn-update.badcdn.test? The ticket does not record an enterprise-wide search.",
+    "Were other Finance users sent the same document?"
+  ],
+  "remaining_risks": [
+    "Other Finance OU hosts remain exempt from macro blocking and in detect-only mode until the policies are changed.",
+    "Possible credential exposure or lateral movement cannot be ruled out until domain controller logs are reviewed.",
+    "Other recipients of the same lure, if any, are not accounted for."
+  ],
+  "timeline": {
+    "incident_id": "INC-2026-002",
+    "events": [
+      {
+        "event_id": "EV001",
+        "timestamp": "2026-10-21T08:47:10Z",
+        "time_basis": "exact",
+        "description": "event=file_open; process=WINWORD.EXE; user=m.okafor",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "edr_events.json",
+            "locator": "events[0]",
+            "excerpt": "2026-10-21T08:47:10Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV002",
+        "timestamp": "2026-10-21T08:47:32Z",
+        "time_basis": "exact",
+        "description": "rule=Office application spawned PowerShell; event=process_create; action=detected; process=powershell.exe; cmdline=powershell.exe -nop -w hidden -enc <redacted>; user=m.okafor; severity=high",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "edr_events.json",
+            "locator": "events[1]",
+            "excerpt": "2026-10-21T08:47:32Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV003",
+        "timestamp": "2026-10-21T08:47:35Z",
+        "time_basis": "exact",
+        "description": "event=network_connect; process=powershell.exe; dest=http://cdn-update.badcdn.test/s2.ps1; user=m.okafor (seen in 2 sources)",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "edr_events.json",
+            "locator": "events[2]",
+            "excerpt": "2026-10-21T08:47:35Z"
+          },
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 1",
+            "excerpt": "2026-10-21T08:47:35Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV004",
+        "timestamp": "2026-10-21T08:48:02Z",
+        "time_basis": "exact",
+        "description": "event=file_write; process=powershell.exe; user=m.okafor",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "edr_events.json",
+            "locator": "events[3]",
+            "excerpt": "2026-10-21T08:48:02Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV005",
+        "timestamp": "2026-10-21T08:48:10Z",
+        "time_basis": "exact",
+        "description": "event=process_create; process=rundll32.exe; cmdline=rundll32.exe C:\\Users\\m.okafor\\AppData\\Roaming\\upd.dll,Start; user=m.okafor",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "edr_events.json",
+            "locator": "events[4]",
+            "excerpt": "2026-10-21T08:48:10Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV006",
+        "timestamp": "2026-10-21T08:49:00Z",
+        "time_basis": "exact",
+        "description": "process=rundll32.exe; url=https://cdn-update.badcdn.test/api/c; src_host=WS-FIN-022",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 2",
+            "excerpt": "2026-10-21T08:49:00Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV007",
+        "timestamp": "2026-10-21T08:50:00Z",
+        "time_basis": "exact",
+        "description": "process=rundll32.exe; url=https://cdn-update.badcdn.test/api/c; src_host=WS-FIN-022",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 3",
+            "excerpt": "2026-10-21T08:50:00Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV008",
+        "timestamp": "2026-10-21T11:15:00Z",
+        "time_basis": "date_inferred",
+        "description": "11:15 EDR-3301 picked up by soc.analyst2. Alert had been in the queue since 08:47; two analysts on shift, backlog of 40 alerts.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ticket.txt",
+            "locator": "line 3",
+            "excerpt": "11:15"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-10-21 is the only date in the evidence; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV009",
+        "timestamp": "2026-10-21T11:21:00Z",
+        "time_basis": "exact",
+        "description": "process=rundll32.exe; url=https://cdn-update.badcdn.test/api/c; src_host=WS-FIN-022",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 4",
+            "excerpt": "2026-10-21T11:21:00Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV010",
+        "timestamp": "2026-10-21T11:22:00Z",
+        "time_basis": "date_inferred",
+        "description": "11:22 Isolated WS-FIN-022 from the network via EDR console.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ticket.txt",
+            "locator": "line 4",
+            "excerpt": "11:22"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-10-21 is the only date in the evidence; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV011",
+        "timestamp": "2026-10-21T11:22:04Z",
+        "time_basis": "exact",
+        "description": "event=host_isolated; process=edr-console; user=soc.analyst2",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "edr_events.json",
+            "locator": "events[5]",
+            "excerpt": "2026-10-21T11:22:04Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV012",
+        "timestamp": "2026-10-21T11:40:00Z",
+        "time_basis": "date_inferred",
+        "description": "11:40 Blocked both file hashes and cdn-update.badcdn.test at EDR and proxy.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ticket.txt",
+            "locator": "line 5",
+            "excerpt": "11:40"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-10-21 is the only date in the evidence; timezone assumed UTC"
+      }
+    ],
+    "undated": [],
+    "warnings": []
+  },
+  "validation_log": [
+    "attempt 1: 0 validation problem(s)"
+  ],
+  "kb_used": [
+    "STD-03#1",
+    "STD-03#3",
+    "STD-03#2",
+    "PB-03#3",
+    "PB-03#4",
+    "PB-03#2",
+    "PIR-2025-014#1",
+    "PIR-2025-014#2"
+  ],
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-24T09:01:54.597987Z",
+  "file_hashes": {
+    "edr_events.json": "3c98dbcd93fedb673da4f059464562227c07d68b385c67ffcc45c45774419de2",
+    "proxy_logs.csv": "33f0750263e250b5533d3d380e051eb78a4109742926ebd5d3f28cbe3d5ec98c",
+    "ticket.txt": "bc94ce0f3adccc76467de6e56ce222889fd0676d375ba5e2f216de06b47a8e0b"
+  }
+}

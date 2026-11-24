@@ -1,0 +1,998 @@
+{
+  "incident_id": "INC-2026-006",
+  "title": "INC-2026-006: Contractor access key c.ng used from an unfamiliar IP to self-grant AdministratorAccess and launch GPU instances",
+  "category": "credential_compromise",
+  "severity": "SEV2",
+  "severity_rationale": "The c.ng account was compromised and the actor attached AdministratorAccess, created a key for svc.reporting and launched 4 GPU instances. Responders contained this by deactivating keys, detaching the policy and terminating the instances. No large-scale sensitive data exposure is confirmed. Management events show ListBuckets only, but object reads cannot be ruled out because S3 data-event logging was off.",
+  "classification_confidence": 0.8,
+  "executive_summary": "c.ng was used from an IP not previously seen for the account and attached AdministratorAccess to itself. The same session created an access key for svc.reporting and launched 4 large GPU instances. c.ng's access key was found in a public repository commit. The misuse was probably done with that leaked key, but this is not confirmed. The contractors group's CI deploy policy granted iam:*, so any member could self-escalate. Long-lived contractor keys were also permitted. The admin-policy alert went to email only. On-call was paged only by the later GPU launch alert. Keys were deactivated, the admin policy detached and the instances terminated. Data reads cannot be ruled out because S3 data-event logging was off.",
+  "what_happened": [
+    {
+      "statement": "Secret scanning found c.ng's access key in a public code repository commit dated 2026-10-30.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 6",
+          "excerpt": "found c.ng's access key in a public code repository commit"
+        }
+      ]
+    },
+    {
+      "statement": "c.ng activity (GetCallerIdentity) came from 198.51.100.77, an IP never before seen for this account. The account normally works from 192.0.2.80.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[1]",
+          "excerpt": "GetCallerIdentity"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 12",
+          "excerpt": "198.51.100.77 has not been seen before for this account"
+        }
+      ]
+    },
+    {
+      "statement": "Using c.ng, the actor attached the AdministratorAccess policy to c.ng itself.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[2]",
+          "excerpt": "arn:aws:iam::aws:policy/AdministratorAccess"
+        },
+        {
+          "file": "cloud_alerts.csv",
+          "locator": "row 1",
+          "excerpt": "Admin policy attached to user"
+        }
+      ]
+    },
+    {
+      "statement": "Using c.ng, the actor created a new access key for the svc.reporting user.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[3]",
+          "excerpt": "\"targetUser\": \"svc.reporting\""
+        }
+      ]
+    },
+    {
+      "statement": "The actor ran ListBuckets. Management events show no other storage activity, but S3 data-event logging was not enabled, so object reads cannot be ruled out.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[4]",
+          "excerpt": "ListBuckets"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "S3 data-event logging is not enabled, so object reads cannot be ruled out"
+        }
+      ]
+    },
+    {
+      "statement": "The actor launched 4 p4d.24xlarge GPU instances.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[5]",
+          "excerpt": "p4d.24xlarge"
+        },
+        {
+          "file": "cloud_alerts.csv",
+          "locator": "row 2",
+          "excerpt": "Anomalous GPU instance launch"
+        }
+      ]
+    },
+    {
+      "statement": "The admin-policy alert went to email only. On-call was paged only by the later GPU launch alert.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "On-call paged by the GPU launch alert"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "The admin-policy alert at 01:13 went to email only."
+        }
+      ]
+    },
+    {
+      "statement": "Responders deactivated the c.ng keys and the new svc.reporting key, detached AdministratorAccess from c.ng and terminated the 4 GPU instances.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 4",
+          "excerpt": "Deactivated both access keys for c.ng"
+        },
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[7]",
+          "excerpt": "DetachUserPolicy"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 5",
+          "excerpt": "Terminated the 4 GPU instances."
+        }
+      ]
+    }
+  ],
+  "key_event_ids": [
+    "EV002",
+    "EV003",
+    "EV004",
+    "EV005",
+    "EV006",
+    "EV007",
+    "EV008",
+    "EV009",
+    "EV010",
+    "EV012",
+    "EV014",
+    "EV015"
+  ],
+  "indicators": [
+    {
+      "value": "198.51.100.77",
+      "entity_type": "ip",
+      "first_seen": {
+        "file": "cloud_alerts.csv",
+        "locator": "row 1",
+        "excerpt": "198.51.100.77"
+      }
+    }
+  ],
+  "attack": [
+    {
+      "technique_id": "T1078.004",
+      "technique_name": "Valid Accounts: Cloud Accounts",
+      "tactic": "initial-access, persistence, privilege-escalation, stealth",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 12",
+          "excerpt": "198.51.100.77 has not been seen before for this account"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 6",
+          "excerpt": "found c.ng's access key in a public code repository commit"
+        }
+      ],
+      "confidence": 0.7,
+      "certainty": "probable",
+      "rationale": "The c.ng cloud account was used from an IP never before seen for it, consistent with use of the leaked key."
+    },
+    {
+      "technique_id": "T1098.003",
+      "technique_name": "Account Manipulation: Additional Cloud Roles",
+      "tactic": "persistence, privilege-escalation",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[2]",
+          "excerpt": "arn:aws:iam::aws:policy/AdministratorAccess"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The actor attached AdministratorAccess to c.ng."
+    },
+    {
+      "technique_id": "T1098.001",
+      "technique_name": "Account Manipulation: Additional Cloud Credentials",
+      "tactic": "persistence, privilege-escalation",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[3]",
+          "excerpt": "\"targetUser\": \"svc.reporting\""
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The actor created an additional access key for svc.reporting."
+    },
+    {
+      "technique_id": "T1619",
+      "technique_name": "Cloud Storage Object Discovery",
+      "tactic": "discovery",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[4]",
+          "excerpt": "ListBuckets"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The actor listed the storage buckets."
+    },
+    {
+      "technique_id": "T1578.002",
+      "technique_name": "Modify Cloud Compute Infrastructure: Create Cloud Instance",
+      "tactic": "defense-impairment",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[5]",
+          "excerpt": "p4d.24xlarge"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The actor launched 4 GPU instances."
+    }
+  ],
+  "attack_catalog": "Enterprise ATT&CK matrix modified 2026-07-31 (ATT&CK spec 3.3.0)",
+  "immediate_cause": {
+    "statement": "c.ng's access key, exposed in a public repository commit, was probably used from the unfamiliar IP 198.51.100.77 to act as c.ng. The records do not state which key authenticated the activity or who used it.",
+    "certainty": "probable",
+    "evidence": [
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 6",
+        "excerpt": "found c.ng's access key in a public code repository commit"
+      },
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 12",
+        "excerpt": "198.51.100.77 has not been seen before for this account"
+      }
+    ]
+  },
+  "root_cause": {
+    "statement": "The CI deploy policy on the contractors group granted iam:*, so a compromised contractor identity could attach AdministratorAccess to itself. Long-lived access keys were also allowed for contractors.",
+    "certainty": "confirmed",
+    "evidence": [
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 7",
+        "excerpt": "grants iam:* so any member could attach AdministratorAccess to themselves"
+      },
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 9",
+        "excerpt": "long-lived access keys are allowed for contractor users"
+      }
+    ]
+  },
+  "contributing_factors": [
+    {
+      "statement": "c.ng's long-lived access key was 400 days old, which made a leaked key usable long after creation.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "c.ng's key was 400 days old"
+        }
+      ]
+    },
+    {
+      "statement": "Long-lived keys were allowed for contractor users.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "long-lived access keys are allowed for contractor users"
+        }
+      ]
+    },
+    {
+      "statement": "The admin-policy alert was routed to email, not paging, so it did not trigger a timely response.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 8",
+          "excerpt": "the admin-policy alert is routed to email, not paging"
+        }
+      ]
+    }
+  ],
+  "impact": {
+    "systems_involved": [],
+    "accounts_involved": [
+      "c.ng",
+      "svc.reporting"
+    ],
+    "data_affected": {
+      "statement": "No object reads are confirmed. Management events show ListBuckets only, but because S3 data-event logging was off, reads cannot be ruled out and data exposure is possible.",
+      "certainty": "possible",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "S3 data-event logging is not enabled, so object reads cannot be ruled out"
+        }
+      ]
+    },
+    "operational_impact": {
+      "statement": "4 p4d.24xlarge GPU instances were launched by the actor and later terminated by responders.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[5]",
+          "excerpt": "p4d.24xlarge"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 5",
+          "excerpt": "Terminated the 4 GPU instances."
+        }
+      ]
+    },
+    "business_impact": {
+      "statement": "Financial cost of the GPU usage and any wider business impact are not stated in the evidence.",
+      "certainty": "unknown",
+      "evidence": []
+    }
+  },
+  "response": {
+    "milestones": {
+      "attack_start": {
+        "event_id": "EV002",
+        "timestamp": "2026-11-02T01:12:40Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[1]",
+            "excerpt": "2026-11-02T01:12:40Z"
+          }
+        ]
+      },
+      "first_detection": {
+        "event_id": "EV004",
+        "timestamp": "2026-11-02T01:13:30Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "cloud_alerts.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-02T01:13:30Z"
+          }
+        ]
+      },
+      "response_start": {
+        "event_id": "EV009",
+        "timestamp": "2026-11-02T01:58:00Z",
+        "time_basis": "date_inferred",
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 3",
+            "excerpt": "01:58"
+          }
+        ]
+      },
+      "containment": {
+        "event_id": "EV010",
+        "timestamp": "2026-11-02T02:03:00Z",
+        "time_basis": "date_inferred",
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 4",
+            "excerpt": "02:03"
+          }
+        ]
+      }
+    },
+    "durations": [
+      {
+        "name": "time_to_detect",
+        "start": "attack_start",
+        "end": "first_detection",
+        "seconds": 50,
+        "approximate": false
+      },
+      {
+        "name": "time_to_respond",
+        "start": "first_detection",
+        "end": "response_start",
+        "seconds": 2670,
+        "approximate": true
+      },
+      {
+        "name": "time_to_contain",
+        "start": "first_detection",
+        "end": "containment",
+        "seconds": 2970,
+        "approximate": true
+      },
+      {
+        "name": "dwell_time",
+        "start": "attack_start",
+        "end": "containment",
+        "seconds": 3020,
+        "approximate": true
+      }
+    ]
+  },
+  "detection_gaps": [
+    {
+      "statement": "The high-severity admin-policy alert was sent to email only and did not page anyone. On-call was paged only by the later GPU launch alert.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "The admin-policy alert at 01:13 went to email only."
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 8",
+          "excerpt": "the admin-policy alert is routed to email, not paging"
+        }
+      ]
+    },
+    {
+      "statement": "S3 data-event logging was not enabled, so it cannot be determined whether objects were read.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "S3 data-event logging is not enabled, so object reads cannot be ruled out"
+        }
+      ]
+    },
+    {
+      "statement": "The leaked key in the public repository was found by secret scanning only during the response, not before use. No earlier detection is recorded.",
+      "certainty": "probable",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 6",
+          "excerpt": "found c.ng's access key in a public code repository commit"
+        }
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "area": "technology",
+      "lesson": "Broad IAM permissions on a shared contractor group let one leaked credential escalate to full administrator. Only the cloud administrators group should hold iam:* and policy-attachment rights, and permission boundaries should block self-attachment.",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 7",
+          "excerpt": "grants iam:* so any member could attach AdministratorAccess to themselves"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "6",
+          "title": "Cloud credentials",
+          "excerpt": "The iam:* permission and policy-attachment rights are granted only to the cloud administrators group"
+        }
+      ]
+    },
+    {
+      "area": "technology",
+      "lesson": "A 400-day-old long-lived contractor key allowed a leaked credential to be used long after it was created. Policy prohibits such keys.",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "c.ng's key was 400 days old"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "6",
+          "title": "Cloud credentials",
+          "excerpt": "Long-lived access keys are prohibited for human and contractor users"
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Alerting on privilege escalation must reach a human immediately. The email-only admin-policy alert delayed response until the GPU alert paged on-call.",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "The admin-policy alert at 01:13 went to email only."
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 8",
+          "excerpt": "the admin-policy alert is routed to email, not paging"
+        }
+      ],
+      "policy_refs": []
+    },
+    {
+      "area": "governance",
+      "lesson": "Missing S3 data-event logging left the data-exposure question unanswerable. Required log sources must be enabled for buckets with confidential data.",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "S3 data-event logging is not enabled, so object reads cannot be ruled out"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-12",
+          "section": "4",
+          "title": "Required log sources",
+          "excerpt": "Storage data-access events (object reads) must be enabled for any bucket holding confidential or restricted data."
+        }
+      ]
+    }
+  ],
+  "corrective_actions": [
+    {
+      "recommendation": "Remove iam:* from the contractors group CI deploy policy. Restrict iam:* and policy attachment to the cloud administrators group and enforce permission boundaries.",
+      "priority": "critical",
+      "reason": "Any member of the contractors group could attach AdministratorAccess to themselves.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 7",
+          "excerpt": "grants iam:* so any member could attach AdministratorAccess to themselves"
+        }
+      ],
+      "owner_team": "Cloud Security / IAM",
+      "timeframe": "Immediately (within 3 days)",
+      "expected_benefit": "A compromised contractor identity can no longer escalate itself to administrator.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "6",
+          "title": "Cloud credentials",
+          "excerpt": "permission boundaries must stop users attaching administrative policies to themselves"
+        }
+      ]
+    },
+    {
+      "recommendation": "Replace long-lived access keys for contractors with short-lived SSO credentials. Rotate or remove any remaining old keys, starting with keys older than 90 days.",
+      "priority": "high",
+      "reason": "c.ng's 400-day-old key was exposed publicly and then used.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "c.ng's key was 400 days old"
+        }
+      ],
+      "owner_team": "Cloud Platform / IAM",
+      "timeframe": "30 days",
+      "expected_benefit": "Leaked credentials expire quickly and have less value.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "6",
+          "title": "Cloud credentials",
+          "excerpt": "it must be rotated within 90 days"
+        }
+      ]
+    },
+    {
+      "recommendation": "Route the admin-policy-attached alert (and similar IAM privilege-change alerts) to paging, not email only.",
+      "priority": "high",
+      "reason": "The 01:13 admin-policy alert went to email only and on-call was paged only by the later GPU alert.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "The admin-policy alert at 01:13 went to email only."
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 8",
+          "excerpt": "the admin-policy alert is routed to email, not paging"
+        }
+      ],
+      "owner_team": "Security Operations",
+      "timeframe": "7 days",
+      "expected_benefit": "Faster response to privilege escalation in cloud accounts.",
+      "policy_refs": []
+    },
+    {
+      "recommendation": "Enable S3 data-event logging for buckets holding confidential or restricted data. Keep logs for at least one year.",
+      "priority": "high",
+      "reason": "Object reads by the actor cannot be ruled out because data events were not logged.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "S3 data-event logging is not enabled, so object reads cannot be ruled out"
+        }
+      ],
+      "owner_team": "Cloud Platform / Security Engineering",
+      "timeframe": "14 days",
+      "expected_benefit": "Future incidents can show whether data was read.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-12",
+          "section": "4",
+          "title": "Required log sources",
+          "excerpt": "Storage data-access events (object reads) must be enabled for any bucket holding confidential or restricted data."
+        }
+      ]
+    },
+    {
+      "recommendation": "Treat bucket data as potentially exposed. Identify the data classification of the buckets that ListBuckets enumerated. If any is restricted, inform the privacy and legal team within the required window.",
+      "priority": "high",
+      "reason": "Reads cannot be ruled out and the actor enumerated buckets.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "S3 data-event logging is not enabled, so object reads cannot be ruled out"
+        },
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[4]",
+          "excerpt": "ListBuckets"
+        }
+      ],
+      "owner_team": "Incident Response / Privacy & Legal",
+      "timeframe": "Immediately",
+      "expected_benefit": "Notification duties are assessed on time if restricted data is involved.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-04",
+          "section": "4",
+          "title": "Data access",
+          "excerpt": "state that reads cannot be ruled out and treat the data as potentially exposed"
+        },
+        {
+          "doc_id": "POL-20",
+          "section": "4",
+          "title": "Incidents involving restricted data",
+          "excerpt": "the privacy and legal team must be informed within 4 hours"
+        }
+      ]
+    },
+    {
+      "recommendation": "Complete a persistence review of every c.ng action. Delete (not only deactivate) the key created for svc.reporting and remove anything else the actor created.",
+      "priority": "high",
+      "reason": "The actor created a key for another identity, svc.reporting.",
+      "supporting_evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[3]",
+          "excerpt": "\"targetUser\": \"svc.reporting\""
+        }
+      ],
+      "owner_team": "Incident Response",
+      "timeframe": "Immediately (within 1 day)",
+      "expected_benefit": "No attacker foothold remains in the account.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-04",
+          "section": "2",
+          "title": "Persistence review",
+          "excerpt": "Remove anything the attacker created, including keys created for other users."
+        }
+      ]
+    },
+    {
+      "recommendation": "Remove the leaked key from repository history, rotate every credential found there and enable push-time secret scanning.",
+      "priority": "high",
+      "reason": "c.ng's key was found in a public repository commit and was discovered only during the response.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 6",
+          "excerpt": "found c.ng's access key in a public code repository commit"
+        }
+      ],
+      "owner_team": "Engineering / AppSec",
+      "timeframe": "7 days",
+      "expected_benefit": "Secrets are caught before publication and stale leaked secrets are invalidated.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-04",
+          "section": "5",
+          "title": "Leaked secrets",
+          "excerpt": "enable push-time secret scanning"
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Who committed the key to the public repository, and was it committed intentionally or by mistake?",
+    "Which key authenticated the activity from 198.51.100.77? Records link it to the leaked key only by inference.",
+    "Were any objects read from the enumerated buckets, and what is the data classification of those buckets?",
+    "What was the purpose of the 4 GPU instances (for example, whether they were used for resource abuse)? The evidence does not say.",
+    "Was every c.ng action in the cloud account reviewed for other persistence beyond the svc.reporting key?"
+  ],
+  "remaining_risks": [
+    "The leaked key may remain in public repository history until it is purged, and other credentials committed there may be exposed.",
+    "The contractors group CI deploy policy still grants iam:* until it is corrected. No fix is recorded.",
+    "Data exposure cannot be ruled out until storage access is assessed, because object-level logs do not exist.",
+    "The svc.reporting key was deactivated, but its deletion and any other persistence are not recorded."
+  ],
+  "timeline": {
+    "incident_id": "INC-2026-006",
+    "events": [
+      {
+        "event_id": "EV001",
+        "timestamp": "2026-11-01T15:40:00Z",
+        "time_basis": "exact",
+        "description": "eventName=DescribeInstances; userName=c.ng",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[0]",
+            "excerpt": "2026-11-01T15:40:00Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV002",
+        "timestamp": "2026-11-02T01:12:40Z",
+        "time_basis": "exact",
+        "description": "eventName=GetCallerIdentity; userName=c.ng",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[1]",
+            "excerpt": "2026-11-02T01:12:40Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV003",
+        "timestamp": "2026-11-02T01:13:05Z",
+        "time_basis": "exact",
+        "description": "eventName=AttachUserPolicy; userName=c.ng",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[2]",
+            "excerpt": "2026-11-02T01:13:05Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV004",
+        "timestamp": "2026-11-02T01:13:30Z",
+        "time_basis": "exact",
+        "description": "alert=Admin policy attached to user; severity=high",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloud_alerts.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-02T01:13:30Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV005",
+        "timestamp": "2026-11-02T01:14:20Z",
+        "time_basis": "exact",
+        "description": "eventName=CreateAccessKey; userName=c.ng",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[3]",
+            "excerpt": "2026-11-02T01:14:20Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV006",
+        "timestamp": "2026-11-02T01:16:02Z",
+        "time_basis": "exact",
+        "description": "eventName=ListBuckets; userName=c.ng",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[4]",
+            "excerpt": "2026-11-02T01:16:02Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV007",
+        "timestamp": "2026-11-02T01:21:47Z",
+        "time_basis": "exact",
+        "description": "eventName=RunInstances; userName=c.ng",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[5]",
+            "excerpt": "2026-11-02T01:21:47Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV008",
+        "timestamp": "2026-11-02T01:50:12Z",
+        "time_basis": "exact",
+        "description": "alert=Anomalous GPU instance launch; severity=high",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloud_alerts.csv",
+            "locator": "row 2",
+            "excerpt": "2026-11-02T01:50:12Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV009",
+        "timestamp": "2026-11-02T01:58:00Z",
+        "time_basis": "date_inferred",
+        "description": "01:58 On-call paged by the GPU launch alert. The admin-policy alert at 01:13 went to email only.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 3",
+            "excerpt": "01:58"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-11-02 taken from ir_notes.txt line 2; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV010",
+        "timestamp": "2026-11-02T02:03:00Z",
+        "time_basis": "date_inferred",
+        "description": "02:03 Deactivated both access keys for c.ng and the new key created for svc.reporting.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 4",
+            "excerpt": "02:03"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-11-02 taken from ir_notes.txt line 2; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV011",
+        "timestamp": "2026-11-02T02:03:10Z",
+        "time_basis": "exact",
+        "description": "eventName=UpdateAccessKey; userName=cloud.secops",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[6]",
+            "excerpt": "2026-11-02T02:03:10Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV012",
+        "timestamp": "2026-11-02T02:04:00Z",
+        "time_basis": "exact",
+        "description": "eventName=DetachUserPolicy; userName=cloud.secops",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[7]",
+            "excerpt": "2026-11-02T02:04:00Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV013",
+        "timestamp": "2026-11-02T02:06:00Z",
+        "time_basis": "date_inferred",
+        "description": "02:06 Terminated the 4 GPU instances.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 5",
+            "excerpt": "02:06"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-11-02 taken from ir_notes.txt line 2; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV014",
+        "timestamp": "2026-11-02T02:06:30Z",
+        "time_basis": "exact",
+        "description": "eventName=TerminateInstances; userName=cloud.secops",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[8]",
+            "excerpt": "2026-11-02T02:06:30Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV015",
+        "timestamp": "2026-11-02T03:10:00Z",
+        "time_basis": "date_inferred",
+        "description": "03:10 Secret scanning found c.ng's access key in a public code repository commit dated 2026-10-30.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 6",
+            "excerpt": "03:10"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-11-02 taken from ir_notes.txt line 2; timezone assumed UTC"
+      }
+    ],
+    "undated": [],
+    "warnings": []
+  },
+  "validation_log": [
+    "attempt 1: 0 validation problem(s)"
+  ],
+  "kb_used": [
+    "POL-07#6",
+    "PB-04#2",
+    "POL-12#4",
+    "PB-04#4",
+    "PB-04#5",
+    "POL-15#3",
+    "PB-05#1",
+    "POL-20#4"
+  ],
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-24T09:06:59.266352Z",
+  "file_hashes": {
+    "cloud_alerts.csv": "31f9d2354e94899f667d461a8b620734b193cd5d7ec840703351c3036b2ca4be",
+    "cloudtrail.json": "127fe8b88d48016fb651c9a36102901b5f69f6d12907b3134b35dd9a99de3740",
+    "ir_notes.txt": "e981b3f3916a1158dd66157678ec5ee25f120976efde81cdd115b6efc229e3e9"
+  }
+}

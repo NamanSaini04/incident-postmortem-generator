@@ -1,0 +1,1069 @@
+{
+  "incident_id": "INC-2026-004",
+  "title": "INC-2026-004: Ransomware on FS-02 via internet-exposed RDP on JMP-01 and the svc.backup service account",
+  "category": "ransomware",
+  "severity": "SEV1",
+  "severity_rationale": "Ransomware activity is confirmed on FS-02: shadow copies were deleted, files were mass-renamed with a .lockd extension, a ransom note was left, and the server had to be restored from offline backup with about 2 days of file changes lost. The 200 GB data-theft claim is not confirmed; egress for FS-02 and JMP-01 showed no large transfers, and other hosts have not been reviewed.",
+  "classification_confidence": 0.9,
+  "executive_summary": "An external IP reached RDP on JMP-01, made 312 failed logons for svc.backup, then logged on successfully. Using svc.backup, the attacker installed a remote service on FS-02, deleted shadow copies and ran locker.exe, which mass-renamed files. A ransom note was left. The root cause was RDP on JMP-01 left open to the internet since 2025 as a temporary vendor exception, and never closed. svc.backup had a 2022 password, no MFA on RDP and admin rights on FS-02, which let one stolen or guessed credential reach the file server. The high-severity shadow-copy alert went to a queue and paged no one. On-call was paged only for the later mass-rename alert. FS-02 and JMP-01 were isolated, svc.backup was disabled and the attacker IP blocked. FS-02 was restored from offline backup with about 2 days of changes lost. The attacker's claim of 200 GB stolen is not confirmed. Egress for FS-02 and JMP-01 showed no large transfers, but other hosts are not yet reviewed, so possible data theft and lateral movement remain open.",
+  "what_happened": [
+    {
+      "statement": "The firewall allowed connections from external IP 203.0.113.66 to JMP-01 on RDP port 3389.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "firewall.csv",
+          "locator": "row 1",
+          "excerpt": "203.0.113.66"
+        },
+        {
+          "file": "firewall.csv",
+          "locator": "row 2",
+          "excerpt": "3389"
+        }
+      ]
+    },
+    {
+      "statement": "There were 312 failed RDP logons for svc.backup on JMP-01 from that IP between 22:41 and 22:58, followed by a successful remote interactive logon.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[0]",
+          "excerpt": "312 failed RDP logons for svc.backup between 22:41 and 22:58"
+        },
+        {
+          "file": "windows_security.json",
+          "locator": "events[1]",
+          "excerpt": "successful remote interactive logon"
+        }
+      ]
+    },
+    {
+      "statement": "Special privileges were assigned to svc.backup's session on JMP-01.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[2]",
+          "excerpt": "special privileges assigned"
+        }
+      ]
+    },
+    {
+      "statement": "A service (PSEXESVC.exe) was installed remotely on FS-02 from JMP-01 using svc.backup.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[3]",
+          "excerpt": "service installed remotely from JMP-01"
+        }
+      ]
+    },
+    {
+      "statement": "svc.backup ran a command to delete all shadow copies on FS-02, and EDR detected it.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[4]",
+          "excerpt": "vssadmin.exe delete shadows /all /quiet"
+        },
+        {
+          "file": "edr_alerts.csv",
+          "locator": "row 1",
+          "excerpt": "Shadow copy deletion"
+        }
+      ]
+    },
+    {
+      "statement": "locker.exe ran on FS-02 as svc.backup, and EDR detected a critical mass file rename with a .lockd extension.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[5]",
+          "excerpt": "locker.exe"
+        },
+        {
+          "file": "edr_alerts.csv",
+          "locator": "row 2",
+          "excerpt": "Mass file rename (.lockd extension)"
+        }
+      ]
+    },
+    {
+      "statement": "A ransom note, README_RESTORE.txt, was left on FS-02. It asks victims to contact an attacker email address and claims data was stolen.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "Ransom note README_RESTORE.txt on FS-02"
+        }
+      ]
+    },
+    {
+      "statement": "On-call was paged only by the mass-rename alert at 23:52. The earlier shadow-copy alert had paged no one.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "The shadow-copy alert at 23:33 had not paged anyone"
+        }
+      ]
+    },
+    {
+      "statement": "Responders isolated FS-02 and JMP-01, then disabled svc.backup and blocked the attacker IP at the firewall.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 4",
+          "excerpt": "Isolated FS-02 and JMP-01 from the network"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 5",
+          "excerpt": "Disabled svc.backup and blocked 203.0.113.66 at the firewall"
+        }
+      ]
+    },
+    {
+      "statement": "FS-02 was restored from offline backup, with about 2 days of file changes lost. The decision was not to pay the ransom.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 6",
+          "excerpt": "About 2 days of file changes were lost"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 12",
+          "excerpt": "no ransom will be paid"
+        }
+      ]
+    },
+    {
+      "statement": "The attacker's claim that 200 GB was stolen is not confirmed. Egress for FS-02 and JMP-01 showed no large outbound transfers, but other hosts have not been reviewed.",
+      "certainty": "possible",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "claims 200 GB was stolen"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 11",
+          "excerpt": "shows no large outbound transfers"
+        }
+      ]
+    }
+  ],
+  "key_event_ids": [
+    "EV001",
+    "EV002",
+    "EV003",
+    "EV005",
+    "EV006",
+    "EV007",
+    "EV008",
+    "EV009",
+    "EV011",
+    "EV012",
+    "EV013",
+    "EV014"
+  ],
+  "indicators": [
+    {
+      "value": "203.0.113.66",
+      "entity_type": "ip",
+      "first_seen": {
+        "file": "firewall.csv",
+        "locator": "row 1",
+        "excerpt": "203.0.113.66"
+      }
+    },
+    {
+      "value": "e48f58a29d9e57c5e23d873afcd37bb3487369ff1ace9ee00dd2dd1401f820a2",
+      "entity_type": "sha256",
+      "first_seen": {
+        "file": "windows_security.json",
+        "locator": "events[5]",
+        "excerpt": "e48f58a29d9e57c5e23d873afcd37bb3487369ff1ace9ee00dd2dd1401f820a2"
+      }
+    },
+    {
+      "value": "decrypt-desk@lockd-support.test",
+      "entity_type": "email",
+      "first_seen": {
+        "file": "ir_notes.txt",
+        "locator": "line 10",
+        "excerpt": "decrypt-desk@lockd-support.test"
+      }
+    },
+    {
+      "value": "lockd-support.test",
+      "entity_type": "domain",
+      "first_seen": {
+        "file": "ir_notes.txt",
+        "locator": "line 10",
+        "excerpt": "lockd-support.test"
+      }
+    }
+  ],
+  "attack": [
+    {
+      "technique_id": "T1110",
+      "technique_name": "Brute Force",
+      "tactic": "credential-access",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[0]",
+          "excerpt": "312 failed RDP logons for svc.backup between 22:41 and 22:58"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "312 failed RDP logons for svc.backup from one external IP preceded a successful logon."
+    },
+    {
+      "technique_id": "T1133",
+      "technique_name": "External Remote Services",
+      "tactic": "initial-access, persistence",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 7",
+          "excerpt": "opened to the internet in 2025 as a temporary vendor exception and never closed"
+        },
+        {
+          "file": "firewall.csv",
+          "locator": "row 2",
+          "excerpt": "3389"
+        }
+      ],
+      "confidence": 0.7,
+      "certainty": "probable",
+      "rationale": "The attacker used RDP on JMP-01 that was exposed to the internet as the entry point."
+    },
+    {
+      "technique_id": "T1078",
+      "technique_name": "Valid Accounts",
+      "tactic": "initial-access, persistence, privilege-escalation, stealth",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[1]",
+          "excerpt": "successful remote interactive logon"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The attacker logged on with the legitimate service account svc.backup."
+    },
+    {
+      "technique_id": "T1021.001",
+      "technique_name": "Remote Services: Remote Desktop Protocol",
+      "tactic": "lateral-movement",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[1]",
+          "excerpt": "successful remote interactive logon"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The attacker made a remote interactive (RDP) logon to JMP-01."
+    },
+    {
+      "technique_id": "T1569.002",
+      "technique_name": "System Services: Service Execution",
+      "tactic": "execution",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[3]",
+          "excerpt": "service installed remotely from JMP-01"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "A PSEXESVC service was installed remotely on FS-02 from JMP-01 under svc.backup."
+    },
+    {
+      "technique_id": "T1490",
+      "technique_name": "Inhibit System Recovery",
+      "tactic": "impact",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[4]",
+          "excerpt": "vssadmin.exe delete shadows /all /quiet"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "Shadow copies on FS-02 were deleted before encryption to prevent recovery."
+    },
+    {
+      "technique_id": "T1486",
+      "technique_name": "Data Encrypted for Impact",
+      "tactic": "impact",
+      "evidence": [
+        {
+          "file": "windows_security.json",
+          "locator": "events[5]",
+          "excerpt": "locker.exe"
+        },
+        {
+          "file": "edr_alerts.csv",
+          "locator": "row 2",
+          "excerpt": "Mass file rename (.lockd extension)"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "Ransom note README_RESTORE.txt on FS-02"
+        }
+      ],
+      "confidence": 0.7,
+      "certainty": "probable",
+      "rationale": "locker.exe ran, files were mass-renamed with a .lockd extension, and a ransom note was left."
+    }
+  ],
+  "attack_catalog": "Enterprise ATT&CK matrix modified 2026-07-31 (ATT&CK spec 3.3.0)",
+  "immediate_cause": {
+    "statement": "After 312 failed attempts, the attacker logged on to JMP-01 over RDP as svc.backup from 203.0.113.66. The evidence does not say how the credential was obtained. Password guessing is probable given the failed-logon burst.",
+    "certainty": "probable",
+    "evidence": [
+      {
+        "file": "windows_security.json",
+        "locator": "events[0]",
+        "excerpt": "312 failed RDP logons for svc.backup between 22:41 and 22:58"
+      },
+      {
+        "file": "windows_security.json",
+        "locator": "events[1]",
+        "excerpt": "successful remote interactive logon"
+      }
+    ]
+  },
+  "root_cause": {
+    "statement": "RDP on JMP-01 was opened to the internet in 2025 as a temporary vendor exception and never closed. This allowed direct internet attack on a service account that RDP never needed to accept.",
+    "certainty": "confirmed",
+    "evidence": [
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 7",
+        "excerpt": "opened to the internet in 2025 as a temporary vendor exception and never closed"
+      }
+    ]
+  },
+  "contributing_factors": [
+    {
+      "statement": "svc.backup had a password last changed in 2022, no MFA on RDP, and admin rights on FS-02. A single credential therefore gave access to the jump host and the file server.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 8",
+          "excerpt": "svc.backup had a password last changed in 2022, no MFA on RDP, and admin rights on FS-02"
+        }
+      ]
+    },
+    {
+      "statement": "The shadow-copy deletion alert was routed to a queue instead of paging, which delayed response.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "routed to a queue, not to paging"
+        }
+      ]
+    }
+  ],
+  "impact": {
+    "systems_involved": [
+      "JMP-01",
+      "FS-02"
+    ],
+    "accounts_involved": [
+      "svc.backup"
+    ],
+    "data_affected": {
+      "statement": "Files on FS-02 were mass-renamed with a .lockd extension, and the server was restored from offline backup with about 2 days of file changes lost. Data exfiltration is not confirmed.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "edr_alerts.csv",
+          "locator": "row 2",
+          "excerpt": "Mass file rename (.lockd extension)"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 6",
+          "excerpt": "About 2 days of file changes were lost"
+        }
+      ]
+    },
+    "operational_impact": {
+      "statement": "FS-02 and JMP-01 were isolated from the network, and FS-02 was restored from offline backup.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 4",
+          "excerpt": "Isolated FS-02 and JMP-01 from the network"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 6",
+          "excerpt": "Restore of FS-02 from the offline backup started"
+        }
+      ]
+    },
+    "business_impact": {
+      "statement": "Financial cost and the duration of user-facing disruption are not stated in the evidence.",
+      "certainty": "unknown",
+      "evidence": []
+    }
+  },
+  "response": {
+    "milestones": {
+      "attack_start": {
+        "event_id": "EV001",
+        "timestamp": "2026-11-10T22:41:07Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "firewall.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-10T22:41:07Z"
+          }
+        ]
+      },
+      "first_detection": {
+        "event_id": "EV007",
+        "timestamp": "2026-11-10T23:33:05Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "edr_alerts.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-10T23:33:05Z"
+          }
+        ]
+      },
+      "response_start": {
+        "event_id": "EV011",
+        "timestamp": "2026-11-10T23:52:00Z",
+        "time_basis": "date_inferred",
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 3",
+            "excerpt": "23:52"
+          }
+        ]
+      },
+      "containment": {
+        "event_id": "EV012",
+        "timestamp": "2026-11-10T23:58:00Z",
+        "time_basis": "date_inferred",
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 4",
+            "excerpt": "23:58"
+          }
+        ]
+      }
+    },
+    "durations": [
+      {
+        "name": "time_to_detect",
+        "start": "attack_start",
+        "end": "first_detection",
+        "seconds": 3118,
+        "approximate": false
+      },
+      {
+        "name": "time_to_respond",
+        "start": "first_detection",
+        "end": "response_start",
+        "seconds": 1135,
+        "approximate": true
+      },
+      {
+        "name": "time_to_contain",
+        "start": "first_detection",
+        "end": "containment",
+        "seconds": 1495,
+        "approximate": true
+      },
+      {
+        "name": "dwell_time",
+        "start": "attack_start",
+        "end": "containment",
+        "seconds": 4613,
+        "approximate": true
+      }
+    ]
+  },
+  "detection_gaps": [
+    {
+      "statement": "The high-severity shadow-copy deletion alert at 23:33 paged no one. Paging happened only for the mass-rename alert at 23:52, after encryption had started.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "The shadow-copy alert at 23:33 had not paged anyone"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "routed to a queue, not to paging"
+        }
+      ]
+    },
+    {
+      "statement": "Egress review is incomplete: only FS-02 and JMP-01 have been checked, so data theft cannot yet be confirmed or ruled out.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 11",
+          "excerpt": "Egress for other hosts not yet reviewed"
+        }
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "area": "governance",
+      "lesson": "Temporary firewall exceptions without an owner and expiry become permanent exposure. A vendor exception stayed open for about a year and was the entry point. Prior guidance on expiring exceptions was not applied here.",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 7",
+          "excerpt": "opened to the internet in 2025 as a temporary vendor exception and never closed"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "PIR-2025-031",
+          "section": "2",
+          "title": "Lessons",
+          "excerpt": "every temporary exception gets an owner and an automatic expiry"
+        },
+        {
+          "doc_id": "POL-15",
+          "section": "2",
+          "title": "Temporary exceptions",
+          "excerpt": "need a named owner and an expiry of at most 30 days"
+        }
+      ]
+    },
+    {
+      "area": "technology",
+      "lesson": "Service accounts must not be usable for RDP and must hold least privilege. An old password and admin rights on FS-02 let one account reach the file server.",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 8",
+          "excerpt": "svc.backup had a password last changed in 2022, no MFA on RDP, and admin rights on FS-02"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "4",
+          "title": "Service accounts",
+          "excerpt": "Service accounts must not be allowed interactive or remote desktop logon."
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Alerts that signal ransomware preparation must page immediately. Queue routing cost about 19 minutes between the shadow-copy alert and the page.",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "routed to a queue, not to paging"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "The shadow-copy alert at 23:33 had not paged anyone"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-12",
+          "section": "2",
+          "title": "Alert routing",
+          "excerpt": "High and critical alerts must page the on-call analyst within 5 minutes."
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Ransom-note theft claims need a scoped egress review across all hosts before conclusions are drawn.",
+      "evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 11",
+          "excerpt": "Egress for other hosts not yet reviewed"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "PB-02",
+          "section": "4",
+          "title": "Data theft claims",
+          "excerpt": "Review egress traffic for all hosts in scope"
+        }
+      ]
+    }
+  ],
+  "corrective_actions": [
+    {
+      "recommendation": "Confirm RDP 3389 on JMP-01 is no longer reachable from the internet. Allow remote access only through a bastion or VPN with MFA, and verify this before reconnecting restored systems.",
+      "priority": "critical",
+      "reason": "RDP exposed to the internet was the entry point, and the evidence does not record the exposure being closed.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 7",
+          "excerpt": "opened to the internet in 2025 as a temporary vendor exception and never closed"
+        }
+      ],
+      "owner_team": "Network Security",
+      "timeframe": "Immediately",
+      "expected_benefit": "Removes the direct internet attack path to JMP-01.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-15",
+          "section": "4",
+          "title": "Remote administration",
+          "excerpt": "Remote administration protocols (RDP, SSH) must never be exposed directly to the internet."
+        },
+        {
+          "doc_id": "PB-02",
+          "section": "5",
+          "title": "Recovery",
+          "excerpt": "Restore from offline or immutable backups after confirming the entry point is closed"
+        }
+      ]
+    },
+    {
+      "recommendation": "Rebuild svc.backup as least-privilege. Deny interactive and RDP logon, remove local admin on FS-02, and use a long rotated password or a managed identity.",
+      "priority": "critical",
+      "reason": "svc.backup had an old password, no MFA on RDP and admin rights, and was the account used throughout the attack.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 8",
+          "excerpt": "svc.backup had a password last changed in 2022, no MFA on RDP, and admin rights on FS-02"
+        }
+      ],
+      "owner_team": "Identity and Access Management",
+      "timeframe": "Within 1 week",
+      "expected_benefit": "A stolen service credential no longer yields remote logon or admin access.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "4",
+          "title": "Service accounts",
+          "excerpt": "Service accounts must not be allowed interactive or remote desktop logon."
+        }
+      ]
+    },
+    {
+      "recommendation": "Audit all existing temporary firewall exceptions. Require a named owner and an automatic expiry of at most 30 days for each, and close those without one.",
+      "priority": "high",
+      "reason": "The vendor exception had no expiry and stayed open about a year.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 7",
+          "excerpt": "opened to the internet in 2025 as a temporary vendor exception and never closed"
+        }
+      ],
+      "owner_team": "Network Security",
+      "timeframe": "Within 2 weeks",
+      "expected_benefit": "Prevents other stale exposures from becoming entry points.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-15",
+          "section": "2",
+          "title": "Temporary exceptions",
+          "excerpt": "need a named owner and an expiry of at most 30 days"
+        },
+        {
+          "doc_id": "PIR-2025-031",
+          "section": "2",
+          "title": "Lessons",
+          "excerpt": "every temporary exception gets an owner and an automatic expiry"
+        }
+      ]
+    },
+    {
+      "recommendation": "Route all high and critical EDR alerts to paging within 5 minutes, and classify shadow-copy deletion as critical.",
+      "priority": "high",
+      "reason": "The high-severity shadow-copy alert went to a queue and paged no one.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 9",
+          "excerpt": "routed to a queue, not to paging"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 3",
+          "excerpt": "The shadow-copy alert at 23:33 had not paged anyone"
+        }
+      ],
+      "owner_team": "Security Operations",
+      "timeframe": "Within 1 week",
+      "expected_benefit": "Earlier on-call response, before encryption begins.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-12",
+          "section": "2",
+          "title": "Alert routing",
+          "excerpt": "Alerts that indicate ransomware preparation, such as shadow copy deletion, are always critical."
+        }
+      ]
+    },
+    {
+      "recommendation": "Complete the egress review for all in-scope hosts, not only FS-02 and JMP-01, to decide whether the data-theft claim has support.",
+      "priority": "high",
+      "reason": "The attacker claims 200 GB was stolen, and only two hosts have been reviewed.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 10",
+          "excerpt": "claims 200 GB was stolen"
+        },
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 11",
+          "excerpt": "Egress for other hosts not yet reviewed"
+        }
+      ],
+      "owner_team": "Incident Response",
+      "timeframe": "Within 3 days",
+      "expected_benefit": "Determines whether data left the network and whether notification duties apply.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-02",
+          "section": "4",
+          "title": "Data theft claims",
+          "excerpt": "Review egress traffic for all hosts in scope"
+        }
+      ]
+    },
+    {
+      "recommendation": "Investigate whether the attacker reached other servers from JMP-01 (logons, remote service installs), and review all hosts reachable from it.",
+      "priority": "high",
+      "reason": "Lateral movement beyond FS-02 is unresolved, and the attacker held admin-level access from JMP-01.",
+      "supporting_evidence": [
+        {
+          "file": "ir_notes.txt",
+          "locator": "line 13",
+          "excerpt": "unclear whether the attacker reached other servers from JMP-01"
+        },
+        {
+          "file": "windows_security.json",
+          "locator": "events[3]",
+          "excerpt": "service installed remotely from JMP-01"
+        }
+      ],
+      "owner_team": "Incident Response",
+      "timeframe": "Within 3 days",
+      "expected_benefit": "Finds any other compromised systems before they are reused.",
+      "policy_refs": []
+    }
+  ],
+  "open_questions": [
+    "How did the attacker obtain the svc.backup password? Password guessing after the 312 failures is probable but not confirmed.",
+    "Was data actually exfiltrated? Egress for FS-02 and JMP-01 shows no large transfers, but other hosts are not reviewed.",
+    "Did the attacker reach other servers from JMP-01?",
+    "Is RDP exposure on JMP-01 now closed? The notes record only that svc.backup was disabled and the attacker IP blocked.",
+    "Did any alerting fire on the 312 failed RDP logons? The evidence records none.",
+    "What is the nature of the 5,320-byte outbound HTTPS connection from FS-02 to 198.51.100.10 at 23:40? Its destination is not identified as malicious in the evidence."
+  ],
+  "remaining_risks": [
+    "Possible data theft that has not been ruled out, since egress for other hosts is unreviewed.",
+    "Other servers may be compromised via JMP-01.",
+    "Other stale temporary exceptions or weak service accounts may exist."
+  ],
+  "timeline": {
+    "incident_id": "INC-2026-004",
+    "events": [
+      {
+        "event_id": "EV001",
+        "timestamp": "2026-11-10T22:41:07Z",
+        "time_basis": "exact",
+        "description": "action=allow; src_ip=203.0.113.66",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "firewall.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-10T22:41:07Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV002",
+        "timestamp": "2026-11-10T22:41:10Z",
+        "time_basis": "exact",
+        "description": "event_id=4625; detail=312 failed RDP logons for svc.backup between 22:41 and 22:58; user=svc.backup; host=JMP-01; src_ip=203.0.113.66",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "windows_security.json",
+            "locator": "events[0]",
+            "excerpt": "2026-11-10T22:41:10Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV003",
+        "timestamp": "2026-11-10T22:58:51Z",
+        "time_basis": "exact",
+        "description": "action=allow; src_ip=203.0.113.66 (seen in 2 sources)",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "firewall.csv",
+            "locator": "row 2",
+            "excerpt": "2026-11-10T22:58:51Z"
+          },
+          {
+            "file": "windows_security.json",
+            "locator": "events[1]",
+            "excerpt": "2026-11-10T22:58:53Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV004",
+        "timestamp": "2026-11-10T23:04:15Z",
+        "time_basis": "exact",
+        "description": "event_id=4672; detail=special privileges assigned; user=svc.backup; host=JMP-01",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "windows_security.json",
+            "locator": "events[2]",
+            "excerpt": "2026-11-10T23:04:15Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV005",
+        "timestamp": "2026-11-10T23:31:40Z",
+        "time_basis": "exact",
+        "description": "event_id=7045; detail=service installed remotely from JMP-01; process=PSEXESVC.exe; user=svc.backup; host=FS-02",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "windows_security.json",
+            "locator": "events[3]",
+            "excerpt": "2026-11-10T23:31:40Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV006",
+        "timestamp": "2026-11-10T23:33:02Z",
+        "time_basis": "exact",
+        "description": "event_id=4688; process=vssadmin.exe; cmdline=vssadmin.exe delete shadows /all /quiet; user=svc.backup; host=FS-02",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "windows_security.json",
+            "locator": "events[4]",
+            "excerpt": "2026-11-10T23:33:02Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV007",
+        "timestamp": "2026-11-10T23:33:05Z",
+        "time_basis": "exact",
+        "description": "alert=Shadow copy deletion; action=detected; host=FS-02; severity=high",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "edr_alerts.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-10T23:33:05Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV008",
+        "timestamp": "2026-11-10T23:34:10Z",
+        "time_basis": "exact",
+        "description": "event_id=4688; process=locker.exe; user=svc.backup; host=FS-02",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "windows_security.json",
+            "locator": "events[5]",
+            "excerpt": "2026-11-10T23:34:10Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV009",
+        "timestamp": "2026-11-10T23:36:40Z",
+        "time_basis": "exact",
+        "description": "alert=Mass file rename (.lockd extension); action=detected; host=FS-02; severity=critical",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "edr_alerts.csv",
+            "locator": "row 2",
+            "excerpt": "2026-11-10T23:36:40Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV010",
+        "timestamp": "2026-11-10T23:40:12Z",
+        "time_basis": "exact",
+        "description": "action=allow; src_ip=FS-02",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "firewall.csv",
+            "locator": "row 3",
+            "excerpt": "2026-11-10T23:40:12Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV011",
+        "timestamp": "2026-11-10T23:52:00Z",
+        "time_basis": "date_inferred",
+        "description": "23:52 On-call paged by the EDR mass-rename alert. The shadow-copy alert at 23:33 had not paged anyone.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 3",
+            "excerpt": "23:52"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-11-10 taken from ir_notes.txt line 2; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV012",
+        "timestamp": "2026-11-10T23:58:00Z",
+        "time_basis": "date_inferred",
+        "description": "23:58 Isolated FS-02 and JMP-01 from the network.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 4",
+            "excerpt": "23:58"
+          }
+        ],
+        "rationale": "note gave time only; date 2026-11-10 taken from ir_notes.txt line 2; timezone assumed UTC"
+      },
+      {
+        "event_id": "EV013",
+        "timestamp": "2026-11-11T01:20:00Z",
+        "time_basis": "timezone_assumed",
+        "description": "2026-11-11 01:20 Disabled svc.backup and blocked 203.0.113.66 at the firewall.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 5",
+            "excerpt": "2026-11-11 01:20"
+          }
+        ],
+        "rationale": "timestamp had no timezone; assumed UTC"
+      },
+      {
+        "event_id": "EV014",
+        "timestamp": "2026-11-11T09:40:00Z",
+        "time_basis": "timezone_assumed",
+        "description": "2026-11-11 09:40 Restore of FS-02 from the offline backup started. About 2 days of file changes were lost.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "ir_notes.txt",
+            "locator": "line 6",
+            "excerpt": "2026-11-11 09:40"
+          }
+        ],
+        "rationale": "timestamp had no timezone; assumed UTC"
+      }
+    ],
+    "undated": [],
+    "warnings": []
+  },
+  "validation_log": [
+    "attempt 1: 0 validation problem(s)"
+  ],
+  "kb_used": [
+    "PB-02#4",
+    "PIR-2025-031#1",
+    "POL-07#4",
+    "PB-02#5",
+    "POL-15#2",
+    "PIR-2025-031#2",
+    "POL-12#2",
+    "POL-15#4"
+  ],
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-24T09:04:09.381284Z",
+  "file_hashes": {
+    "edr_alerts.csv": "d1eb9ee53fb9bbd1fd93c051de22f0b773da0e294eb8f5d98a9a0e26f09b30bd",
+    "firewall.csv": "ecf764454e27397bf66a732dcefba5f95349476f8d0c0bf45377385817c6372a",
+    "ir_notes.txt": "7df2cec315cc26243c2e2262b239fe551e07af9c2d603dea3811cea998560f96",
+    "windows_security.json": "bb1692a9700508c594abb3c26686592d7a1d3a2923d2c3583aaf8ed69d0db85c"
+  }
+}

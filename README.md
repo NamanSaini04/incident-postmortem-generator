@@ -4,7 +4,7 @@ Turns incident evidence (logs, alerts, analyst notes) into a structured
 postmortem where every claim cites its source. **Defensive use only.**
 Synthetic data only.
 
-## Status: Phase 9 of 15 complete (command-line tool; no dashboard yet)
+## Status: Phase 10 of 15 complete (dashboard built; public deployment pending)
 
 | Phase | What | State |
 |---|---|---|
@@ -14,8 +14,8 @@ Synthetic data only.
 | 7 | MITRE ATT&CK mapping, checked against the official catalogue | Done. Recall 92%, 0 forbidden techniques |
 | 8 | Root cause vs immediate cause, impact scope, response timing | Done. Milestones 24/24, 0 forbidden systems/accounts |
 | 9 | Independent verifier for saved reports | Done. 6/6 reports pass, 718 items, 0 failures |
-| 10 | Streamlit dashboard (demo mode) | Next |
-| 11 | Incident PDF export | Planned |
+| 10 | Streamlit dashboard (demo mode: saved reports, no API calls) | Done. Public link pending |
+| 11 | Incident PDF export | Next |
 | 12-15 | Evaluation write-up, optional agents, technical report, deployment | Planned |
 
 Across all runs: 116/116 hallucination traps avoided (checked by hand).
@@ -30,7 +30,7 @@ Details in `docs/results.md`.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install ".[dev,llm]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 302 passed
+pytest -q          # expect: 313 passed (2 dashboard tests skip if streamlit is not installed)
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline
@@ -63,6 +63,21 @@ check by hand (the hallucination traps).
 may have marked the install's `.pth` file as hidden, and newer Python skips
 hidden `.pth` files. A normal install (`pip install ".[dev]"`) avoids this.
 
+## Dashboard
+
+```bash
+pip install ".[app]"
+streamlit run streamlit_app.py
+```
+
+Demo mode by default: shows the saved reports in `docs/sample_reports/phase8/`
+(JSON) with their evidence, timeline, ATT&CK mapping, impact, response timing,
+actions, the full report, and the verifier result. No API key, no cost.
+Live generation appears only when you set `PMGEN_LIVE=1` and `ANTHROPIC_API_KEY`
+on your own machine, so a public deployment can never spend API credit.
+Other report folders: `PMGEN_REPORTS_DIR=path streamlit run streamlit_app.py`.
+Uploading new evidence files through the app is not supported yet.
+
 ## Verifying a saved report (no API key needed)
 
 ```bash
@@ -93,12 +108,14 @@ src/pmgen/kb.py            Knowledge base: section chunking + BM25 retrieval
 src/pmgen/abtest.py        Summarise with/without-RAG runs
 src/pmgen/attack.py        MITRE ATT&CK catalogue lookups and ID checks
 src/pmgen/verify.py        Independent re-check of a saved report against the evidence
+src/pmgen/dashboard_data.py  Data for the dashboard (tested without Streamlit)
+streamlit_app.py           The dashboard
 src/pmgen/provenance.py   Resolve "file / row N" back to the source record
 src/pmgen/samples.py      Load bundled incidents
 data/incidents/INC-*/     Evidence files + ground_truth.json
 docs/architecture.md      Design, pipeline diagram, roadmap
 docs/sample_reports/      Real generated reports, one folder per phase
-tests/                    302 tests: schema rules, validator, verifier, scoring
+tests/                    313 tests: schema rules, validator, verifier, scoring, dashboard
 ```
 
 See `docs/architecture.md` for the design and `docs/results.md` for real-model results.

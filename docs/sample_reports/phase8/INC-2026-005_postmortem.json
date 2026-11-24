@@ -1,0 +1,923 @@
+{
+  "incident_id": "INC-2026-005",
+  "title": "INC-2026-005: Departing sales employee uploaded CRM pipeline and pricing exports to personal cloud storage",
+  "category": "insider_threat",
+  "severity": "SEV2",
+  "severity_rationale": "A confirmed insider action by r.mehta, a resigned employee, moved confidential pipeline and pricing exports to personal cloud storage, and access was then suspended. The exported fields contain no customer personal data and no payment data (hr_ticket.txt line 9), so there is no confirmed large-scale exposure of sensitive personal data or credentials. Deletion of the uploaded copies is not verified, which remains an open risk.",
+  "classification_confidence": 0.85,
+  "executive_summary": "A sales user who had resigned exported all-region opportunities and the 2027 price book from the CRM. Proxy and DLP records show both files were uploaded to a personal cloud service from the managed laptop. The exported data was pipeline forecast and pricing. The ticket says it contained no customer personal data and no payment data. The DLP rule for personal cloud uploads has been audit-only since the 2025 rollout, so the uploads were logged but allowed. There is no process to reduce CRM export rights on resignation, and any sales user can bulk-export all regions' opportunities. Both made the export possible. Security reviewed the DLP alerts the following morning, and the review was part of the weekly DLP report. This probably means the alerts were not handled as real-time, high-priority triage, though that is not confirmed. Access was suspended and the laptop collected later that day. The employee said the files were copied for personal reference and agreed to delete them. Deletion from the personal cloud account is not verified, so copies may remain.",
+  "what_happened": [
+    {
+      "statement": "Sales employee r.mehta resigned on 2026-11-14 with a last working day of 2026-11-28. The new employer was not disclosed.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 2",
+          "excerpt": "resigned on 2026-11-14 with a last working day of 2026-11-28"
+        }
+      ]
+    },
+    {
+      "statement": "On 2026-11-17, r.mehta exported all regions' opportunities (4820 records) and the 2027 price book from the CRM on LT-SALES-07 (EV002, EV003).",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "crm_audit.csv",
+          "locator": "row 2",
+          "excerpt": "Opportunities (all regions)"
+        },
+        {
+          "file": "crm_audit.csv",
+          "locator": "row 3",
+          "excerpt": "Price book 2027"
+        }
+      ]
+    },
+    {
+      "statement": "Within about 20 minutes of the exports, two POST uploads to upload.personal-cloud.test from LT-SALES-07 were recorded by the proxy and by DLP (EV004, EV005).",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "https://upload.personal-cloud.test/v2/files"
+        },
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 2",
+          "excerpt": "https://upload.personal-cloud.test/v2/files"
+        },
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "Opportunities_export.xlsx"
+        },
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[1]",
+          "excerpt": "Price_book_2027.xlsx"
+        }
+      ]
+    },
+    {
+      "statement": "The uploaded files are probably the CRM exports. The file names match the exported objects and the uploads followed the exports closely, but no record ties them together directly.",
+      "certainty": "probable",
+      "evidence": [
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "Opportunities_export.xlsx"
+        },
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[1]",
+          "excerpt": "Price_book_2027.xlsx"
+        },
+        {
+          "file": "crm_audit.csv",
+          "locator": "row 2",
+          "excerpt": "Opportunities (all regions)"
+        }
+      ]
+    },
+    {
+      "statement": "DLP flagged both uploads but the rule was in audit mode, so the uploads were allowed.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "\"mode\": \"audit\", \"action\": \"allowed\""
+        },
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[1]",
+          "excerpt": "\"mode\": \"audit\", \"action\": \"allowed\""
+        },
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 6",
+          "excerpt": "audit-only mode since the 2025 rollout"
+        }
+      ]
+    },
+    {
+      "statement": "On 2026-11-18 Security reviewed the DLP alerts as part of the weekly DLP report (EV007).",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 3",
+          "excerpt": "Security reviewed the DLP alerts as part of the weekly DLP report"
+        }
+      ]
+    },
+    {
+      "statement": "In an interview, r.mehta said the files were copied for personal reference and agreed to delete them (EV008). This is the employee's own account and is not independently verified.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 4",
+          "excerpt": "said the files were copied \"for personal reference\" and agreed to delete them"
+        }
+      ]
+    },
+    {
+      "statement": "r.mehta's CRM and VPN access was suspended and the laptop collected (EV009).",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 5",
+          "excerpt": "CRM and VPN access suspended; laptop collected"
+        }
+      ]
+    },
+    {
+      "statement": "Deletion of the files from the personal cloud account has not been verified, and copies may remain.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 10",
+          "excerpt": "deletion from the personal cloud account is not verified; copies may remain"
+        }
+      ]
+    }
+  ],
+  "key_event_ids": [
+    "EV002",
+    "EV003",
+    "EV004",
+    "EV005",
+    "EV007",
+    "EV009"
+  ],
+  "indicators": [
+    {
+      "value": "upload.personal-cloud.test",
+      "entity_type": "domain",
+      "first_seen": {
+        "file": "dlp_alerts.json",
+        "locator": "alerts[0]",
+        "excerpt": "upload.personal-cloud.test"
+      }
+    },
+    {
+      "value": "https://upload.personal-cloud.test/v2/files",
+      "entity_type": "url",
+      "first_seen": {
+        "file": "proxy_logs.csv",
+        "locator": "row 1",
+        "excerpt": "https://upload.personal-cloud.test/v2/files"
+      }
+    }
+  ],
+  "attack": [
+    {
+      "technique_id": "T1213",
+      "technique_name": "Data from Information Repositories",
+      "tactic": "collection",
+      "evidence": [
+        {
+          "file": "crm_audit.csv",
+          "locator": "row 2",
+          "excerpt": "Opportunities (all regions)"
+        },
+        {
+          "file": "crm_audit.csv",
+          "locator": "row 3",
+          "excerpt": "Price book 2027"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The user bulk-exported opportunity and price book data from the CRM repository."
+    },
+    {
+      "technique_id": "T1567.002",
+      "technique_name": "Exfiltration Over Web Service: Exfiltration to Cloud Storage",
+      "tactic": "exfiltration",
+      "evidence": [
+        {
+          "file": "proxy_logs.csv",
+          "locator": "row 1",
+          "excerpt": "https://upload.personal-cloud.test/v2/files"
+        },
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "Upload to personal cloud storage"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "The exported files were uploaded to a personal cloud storage service over HTTPS."
+    }
+  ],
+  "attack_catalog": "Enterprise ATT&CK matrix modified 2026-07-31 (ATT&CK spec 3.3.0)",
+  "immediate_cause": {
+    "statement": "r.mehta, a resigned employee using their own managed laptop and account, exported CRM pipeline and pricing data and uploaded it to a personal cloud storage service.",
+    "certainty": "confirmed",
+    "evidence": [
+      {
+        "file": "crm_audit.csv",
+        "locator": "row 2",
+        "excerpt": "Opportunities (all regions)"
+      },
+      {
+        "file": "proxy_logs.csv",
+        "locator": "row 1",
+        "excerpt": "https://upload.personal-cloud.test/v2/files"
+      },
+      {
+        "file": "hr_ticket.txt",
+        "locator": "line 11",
+        "excerpt": "All activity came from r.mehta's managed laptop LT-SALES-07"
+      }
+    ]
+  },
+  "root_cause": {
+    "statement": "The DLP rule for personal cloud uploads has stayed in audit-only mode since the 2025 rollout, so uploads of confidential data to personal cloud storage were detected but not blocked.",
+    "certainty": "confirmed",
+    "evidence": [
+      {
+        "file": "hr_ticket.txt",
+        "locator": "line 6",
+        "excerpt": "the DLP rule for personal cloud uploads has run in audit-only mode since the 2025 rollout"
+      },
+      {
+        "file": "dlp_alerts.json",
+        "locator": "alerts[0]",
+        "excerpt": "\"mode\": \"audit\", \"action\": \"allowed\""
+      }
+    ]
+  },
+  "contributing_factors": [
+    {
+      "statement": "No process reduces CRM export rights when an employee resigns. The export happened three days after the resignation date, with the notice period still running.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 7",
+          "excerpt": "there is no process to reduce CRM export rights when an employee resigns"
+        },
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 2",
+          "excerpt": "resigned on 2026-11-14"
+        }
+      ]
+    },
+    {
+      "statement": "The CRM lets any sales user bulk-export all regions' opportunities.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 8",
+          "excerpt": "the CRM lets any sales user bulk-export all regions' opportunities"
+        }
+      ]
+    },
+    {
+      "statement": "DLP alerts for personal cloud uploads were handled through the weekly DLP report review rather than real-time triage, which probably delayed the human response.",
+      "certainty": "probable",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 3",
+          "excerpt": "Security reviewed the DLP alerts as part of the weekly DLP report"
+        }
+      ]
+    }
+  ],
+  "impact": {
+    "systems_involved": [
+      "LT-SALES-07",
+      "upload.personal-cloud.test"
+    ],
+    "accounts_involved": [
+      "r.mehta"
+    ],
+    "data_affected": {
+      "statement": "Pipeline forecast and pricing data (4820 opportunity records and the 2027 price book) were uploaded to personal cloud storage. The exported fields contain no customer personal data and no payment data.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 9",
+          "excerpt": "Data involved: pipeline forecast and pricing"
+        },
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 9",
+          "excerpt": "The exported fields contain no customer personal data and no payment data."
+        },
+        {
+          "file": "crm_audit.csv",
+          "locator": "row 2",
+          "excerpt": "4820"
+        }
+      ]
+    },
+    "operational_impact": {
+      "statement": "The employee's CRM and VPN access was suspended and the laptop collected. No other operational disruption is recorded.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 5",
+          "excerpt": "CRM and VPN access suspended; laptop collected"
+        }
+      ]
+    },
+    "business_impact": {
+      "statement": "The business impact is not determined. The evidence does not say whether the data reached a competitor or what any cost was.",
+      "certainty": "unknown",
+      "evidence": []
+    }
+  },
+  "response": {
+    "milestones": {
+      "attack_start": {
+        "event_id": "EV002",
+        "timestamp": "2026-11-17T16:02:11Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "crm_audit.csv",
+            "locator": "row 2",
+            "excerpt": "2026-11-17T16:02:11Z"
+          }
+        ]
+      },
+      "first_detection": {
+        "event_id": "EV004",
+        "timestamp": "2026-11-17T16:21:33Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-17T16:21:33Z"
+          },
+          {
+            "file": "dlp_alerts.json",
+            "locator": "alerts[0]",
+            "excerpt": "2026-11-17T16:21:35Z"
+          }
+        ]
+      },
+      "response_start": {
+        "event_id": "EV007",
+        "timestamp": "2026-11-18T09:15:00Z",
+        "time_basis": "timezone_assumed",
+        "sources": [
+          {
+            "file": "hr_ticket.txt",
+            "locator": "line 3",
+            "excerpt": "2026-11-18 09:15"
+          }
+        ]
+      },
+      "containment": {
+        "event_id": "EV009",
+        "timestamp": "2026-11-18T14:40:00Z",
+        "time_basis": "timezone_assumed",
+        "sources": [
+          {
+            "file": "hr_ticket.txt",
+            "locator": "line 5",
+            "excerpt": "2026-11-18 14:40"
+          }
+        ]
+      }
+    },
+    "durations": [
+      {
+        "name": "time_to_detect",
+        "start": "attack_start",
+        "end": "first_detection",
+        "seconds": 1162,
+        "approximate": false
+      },
+      {
+        "name": "time_to_respond",
+        "start": "first_detection",
+        "end": "response_start",
+        "seconds": 60807,
+        "approximate": true
+      },
+      {
+        "name": "time_to_contain",
+        "start": "first_detection",
+        "end": "containment",
+        "seconds": 80307,
+        "approximate": true
+      },
+      {
+        "name": "dwell_time",
+        "start": "attack_start",
+        "end": "containment",
+        "seconds": 81469,
+        "approximate": true
+      }
+    ]
+  },
+  "detection_gaps": [
+    {
+      "statement": "The DLP rule only logged the personal cloud uploads (audit mode, action allowed), so there was no prevention and no blocking at the time of upload.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "\"mode\": \"audit\", \"action\": \"allowed\""
+        },
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[1]",
+          "excerpt": "\"mode\": \"audit\", \"action\": \"allowed\""
+        }
+      ]
+    },
+    {
+      "statement": "Human review of the DLP alerts happened the day after the uploads, through the weekly DLP report process, and probably not as a high-priority real-time alert.",
+      "certainty": "probable",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 3",
+          "excerpt": "Security reviewed the DLP alerts as part of the weekly DLP report"
+        },
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "Upload to personal cloud storage"
+        }
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "area": "technology",
+      "lesson": "A DLP rule left in audit mode after rollout detects data loss but does not prevent it. Rules covering confidential uploads to personal cloud must move to blocking after the tuning period.",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 6",
+          "excerpt": "audit-only mode since the 2025 rollout"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-12",
+          "section": "5",
+          "title": "Data loss prevention",
+          "excerpt": "After that, rules covering uploads of confidential or restricted data to personal cloud storage must block."
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Leaver controls must start when notice is given. Bulk-export rights stayed in place during the notice period and were used.",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 7",
+          "excerpt": "there is no process to reduce CRM export rights when an employee resigns"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "5",
+          "title": "Joiners, movers and leavers",
+          "excerpt": "removes bulk-export, admin and sensitive-data rights for the notice period"
+        }
+      ]
+    },
+    {
+      "area": "governance",
+      "lesson": "Confidential data such as pricing and pipeline should be exportable only by roles with a business need, not by every sales user.",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 8",
+          "excerpt": "the CRM lets any sales user bulk-export all regions' opportunities"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-20",
+          "section": "2",
+          "title": "Confidential data",
+          "excerpt": "Bulk exports of confidential data require a business reason and are limited to roles that need them."
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "DLP alerts for personal cloud uploads should be triaged as high priority when they occur, not only in periodic reports.",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 3",
+          "excerpt": "Security reviewed the DLP alerts as part of the weekly DLP report"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-12",
+          "section": "5",
+          "title": "Data loss prevention",
+          "excerpt": "DLP alerts for personal cloud uploads are triaged as high, not only in periodic reports."
+        }
+      ]
+    },
+    {
+      "area": "people",
+      "lesson": "In this case the interview came before access suspension and device collection. The insider playbook says to preserve logs and devices first, so the interview may have given the employee a chance to act on the data. The records do not show whether this happened.",
+      "evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 4",
+          "excerpt": "Interview with r.mehta"
+        },
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 5",
+          "excerpt": "CRM and VPN access suspended; laptop collected"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "PB-05",
+          "section": "3",
+          "title": "Insider cases",
+          "excerpt": "preserve logs and devices first"
+        }
+      ]
+    }
+  ],
+  "corrective_actions": [
+    {
+      "recommendation": "Switch the DLP rule for uploads of confidential data to personal cloud storage from audit to block mode, with a defined exception process.",
+      "priority": "critical",
+      "reason": "The rule has been audit-only since 2025, so both uploads were allowed.",
+      "supporting_evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 6",
+          "excerpt": "audit-only mode since the 2025 rollout"
+        },
+        {
+          "file": "dlp_alerts.json",
+          "locator": "alerts[0]",
+          "excerpt": "\"mode\": \"audit\", \"action\": \"allowed\""
+        }
+      ],
+      "owner_team": "Security Engineering",
+      "timeframe": "Within 2 weeks",
+      "expected_benefit": "Uploads of confidential files to personal cloud are stopped at the time of the attempt.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-12",
+          "section": "5",
+          "title": "Data loss prevention",
+          "excerpt": "DLP rules may run in audit mode for at most 30 days of tuning."
+        }
+      ]
+    },
+    {
+      "recommendation": "Create a leaver process under which HR notifies IT within one business day of notice, and IT removes bulk-export and sensitive-data rights for the notice period unless the manager approves otherwise in writing.",
+      "priority": "high",
+      "reason": "No process reduced CRM export rights after the resignation, and the export took place three days later.",
+      "supporting_evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 7",
+          "excerpt": "there is no process to reduce CRM export rights when an employee resigns"
+        },
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 2",
+          "excerpt": "resigned on 2026-11-14"
+        }
+      ],
+      "owner_team": "HR and IT",
+      "timeframe": "Within 30 days",
+      "expected_benefit": "Leavers cannot bulk-export confidential data during the notice period.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-07",
+          "section": "5",
+          "title": "Joiners, movers and leavers",
+          "excerpt": "HR informs IT within one business day"
+        }
+      ]
+    },
+    {
+      "recommendation": "Restrict CRM bulk export of all-region opportunities and price book data to roles with a documented business need.",
+      "priority": "high",
+      "reason": "Any sales user could export all regions' opportunities.",
+      "supporting_evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 8",
+          "excerpt": "the CRM lets any sales user bulk-export all regions' opportunities"
+        }
+      ],
+      "owner_team": "Sales Operations and IT",
+      "timeframe": "Within 30 days",
+      "expected_benefit": "Less confidential data can be removed from the CRM in one action.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-20",
+          "section": "2",
+          "title": "Confidential data",
+          "excerpt": "limited to roles that need them"
+        }
+      ]
+    },
+    {
+      "recommendation": "Obtain a written deletion attestation from r.mehta and verify it where possible. Record any copies that cannot be confirmed deleted as a remaining risk, and consider legal advice on further steps.",
+      "priority": "high",
+      "reason": "Deletion from the personal cloud account is not verified and copies may remain.",
+      "supporting_evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 10",
+          "excerpt": "deletion from the personal cloud account is not verified; copies may remain"
+        },
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 4",
+          "excerpt": "agreed to delete them"
+        }
+      ],
+      "owner_team": "Security and Legal",
+      "timeframe": "Immediately, before the last working day (2026-11-28)",
+      "expected_benefit": "Documents the remaining exposure of the pricing and pipeline data and reduces the chance that copies persist.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-05",
+          "section": "4",
+          "title": "Deletion and copies",
+          "excerpt": "Obtain a written deletion attestation and verify it where possible"
+        }
+      ]
+    },
+    {
+      "recommendation": "Triage DLP alerts for personal cloud uploads as high priority with same-day review, outside the weekly report.",
+      "priority": "medium",
+      "reason": "The alerts were reviewed through the weekly DLP report process, the day after the uploads.",
+      "supporting_evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 3",
+          "excerpt": "Security reviewed the DLP alerts as part of the weekly DLP report"
+        }
+      ],
+      "owner_team": "Security Operations",
+      "timeframe": "Within 2 weeks",
+      "expected_benefit": "Shorter time from upload to response while preventive controls are being rolled out.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-12",
+          "section": "5",
+          "title": "Data loss prevention",
+          "excerpt": "DLP alerts for personal cloud uploads are triaged as high, not only in periodic reports."
+        }
+      ]
+    },
+    {
+      "recommendation": "Brief HR and Security on the insider-case order of work: involve HR and legal, then preserve logs and devices, then interview the employee.",
+      "priority": "low",
+      "reason": "The interview took place before the laptop was collected.",
+      "supporting_evidence": [
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 4",
+          "excerpt": "Interview with r.mehta"
+        },
+        {
+          "file": "hr_ticket.txt",
+          "locator": "line 5",
+          "excerpt": "CRM and VPN access suspended; laptop collected"
+        }
+      ],
+      "owner_team": "Security and HR",
+      "timeframe": "Within 60 days",
+      "expected_benefit": "More consistent handling of insider cases and better preservation of evidence.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-05",
+          "section": "3",
+          "title": "Insider cases",
+          "excerpt": "Involve HR and legal before interviewing the employee, and preserve logs and devices first."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Were the files deleted from the personal cloud account, and do other copies exist (for example downloaded or shared)? The ticket marks deletion as not verified.",
+    "What was the employee's real purpose? The only statement is 'for personal reference' (hr_ticket.txt line 4), and the new employer is not disclosed (hr_ticket.txt line 2).",
+    "Did the employee export or upload other data before 2026-11-17? Only three CRM audit rows are in the evidence pack.",
+    "Were HR and legal involved before the interview and was evidence preserved first? The records do not say.",
+    "The HR ticket entries for 2026-11-18 are marked as having an assumed timezone, so the exact response times are not firm.",
+    "Is there any business or competitive impact from the pricing and pipeline data leaving the company? The evidence does not say."
+  ],
+  "remaining_risks": [
+    "Copies of the pipeline forecast and 2027 pricing data may remain in the employee's personal cloud account.",
+    "Other employees currently have the same bulk-export rights, and the DLP rule is still audit-only, unless these have changed since the incident."
+  ],
+  "timeline": {
+    "incident_id": "INC-2026-005",
+    "events": [
+      {
+        "event_id": "EV001",
+        "timestamp": "2026-11-14T10:12:00Z",
+        "time_basis": "exact",
+        "description": "action=view; object=Account ACME-112; record_count=1; user=r.mehta; src_host=LT-SALES-07",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "crm_audit.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-14T10:12:00Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV002",
+        "timestamp": "2026-11-17T16:02:11Z",
+        "time_basis": "exact",
+        "description": "action=export; object=Opportunities (all regions); record_count=4820; user=r.mehta; src_host=LT-SALES-07",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "crm_audit.csv",
+            "locator": "row 2",
+            "excerpt": "2026-11-17T16:02:11Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV003",
+        "timestamp": "2026-11-17T16:05:40Z",
+        "time_basis": "exact",
+        "description": "action=export; object=Price book 2027; record_count=1; user=r.mehta; src_host=LT-SALES-07",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "crm_audit.csv",
+            "locator": "row 3",
+            "excerpt": "2026-11-17T16:05:40Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV004",
+        "timestamp": "2026-11-17T16:21:33Z",
+        "time_basis": "exact",
+        "description": "method=POST; url=https://upload.personal-cloud.test/v2/files; user=r.mehta; src_host=LT-SALES-07 (seen in 2 sources)",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 1",
+            "excerpt": "2026-11-17T16:21:33Z"
+          },
+          {
+            "file": "dlp_alerts.json",
+            "locator": "alerts[0]",
+            "excerpt": "2026-11-17T16:21:35Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV005",
+        "timestamp": "2026-11-17T16:22:10Z",
+        "time_basis": "exact",
+        "description": "method=POST; url=https://upload.personal-cloud.test/v2/files; user=r.mehta; src_host=LT-SALES-07 (seen in 2 sources)",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 2",
+            "excerpt": "2026-11-17T16:22:10Z"
+          },
+          {
+            "file": "dlp_alerts.json",
+            "locator": "alerts[1]",
+            "excerpt": "2026-11-17T16:22:12Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV006",
+        "timestamp": "2026-11-17T16:30:00Z",
+        "time_basis": "exact",
+        "description": "method=GET; url=https://intranet.example/hr/leave; user=r.mehta; src_host=LT-SALES-07",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "proxy_logs.csv",
+            "locator": "row 3",
+            "excerpt": "2026-11-17T16:30:00Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV007",
+        "timestamp": "2026-11-18T09:15:00Z",
+        "time_basis": "timezone_assumed",
+        "description": "2026-11-18 09:15 Security reviewed the DLP alerts as part of the weekly DLP report.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "hr_ticket.txt",
+            "locator": "line 3",
+            "excerpt": "2026-11-18 09:15"
+          }
+        ],
+        "rationale": "timestamp had no timezone; assumed UTC"
+      },
+      {
+        "event_id": "EV008",
+        "timestamp": "2026-11-18T14:00:00Z",
+        "time_basis": "timezone_assumed",
+        "description": "2026-11-18 14:00 Interview with r.mehta: said the files were copied \"for personal reference\" and agreed to delete them.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "hr_ticket.txt",
+            "locator": "line 4",
+            "excerpt": "2026-11-18 14:00"
+          }
+        ],
+        "rationale": "timestamp had no timezone; assumed UTC"
+      },
+      {
+        "event_id": "EV009",
+        "timestamp": "2026-11-18T14:40:00Z",
+        "time_basis": "timezone_assumed",
+        "description": "2026-11-18 14:40 r.mehta's CRM and VPN access suspended; laptop collected.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "hr_ticket.txt",
+            "locator": "line 5",
+            "excerpt": "2026-11-18 14:40"
+          }
+        ],
+        "rationale": "timestamp had no timezone; assumed UTC"
+      }
+    ],
+    "undated": [],
+    "warnings": []
+  },
+  "validation_log": [
+    "attempt 1: 1 validation problem(s)",
+    "attempt 1 problem: summary_points[4]: summary point states a probable finding as fact; hedge it (e.g. 'probably', 'may', 'not confirmed'): 'Security reviewed the DLP alerts the following morning as part of the weekly DLP'",
+    "attempt 2: 0 validation problem(s)"
+  ],
+  "kb_used": [
+    "POL-12#5",
+    "POL-20#1",
+    "POL-07#5",
+    "POL-20#2",
+    "PB-05#4",
+    "POL-07#4",
+    "POL-15#3",
+    "PB-05#3"
+  ],
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-24T09:05:55.233226Z",
+  "file_hashes": {
+    "crm_audit.csv": "7d28884af6faded6d541bc4707e5803eacab9283f2f45e2ca0efc36e73cd6a3a",
+    "dlp_alerts.json": "f8546fccea8ad6e43a5a6c59b5a32cfc3d43ad85c124c6f3901cb8988595ab8e",
+    "hr_ticket.txt": "b951425f2c381ae91f31a23b92d6584aadb0202968bf888dd9790a1468dbcb3d",
+    "proxy_logs.csv": "f5d660d08c35b534192542a65ee72a8c346035254784574a49622fe7ef69ab13"
+  }
+}

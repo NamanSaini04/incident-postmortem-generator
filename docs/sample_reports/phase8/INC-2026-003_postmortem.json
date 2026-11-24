@@ -1,0 +1,807 @@
+{
+  "incident_id": "INC-2026-003",
+  "title": "INC-2026-003: Customer data export bucket acme-crm-exports publicly exposed for four days",
+  "category": "data_exposure",
+  "severity": "SEV1",
+  "severity_rationale": "Confirmed: the bucket was publicly readable, and an unauthenticated external requester downloaded both customer files holding about 41,200 customer records (names, emails, phone numbers). This is restricted customer personal data at scale, so SEV1 applies. Fast closure after the report does not lower severity. Legal and privacy were informed to assess notification duties.",
+  "classification_confidence": 0.85,
+  "executive_summary": "On 14 Sep d.reyes removed the public access block on acme-crm-exports and applied a policy allowing everyone to read and list it. This was done to let a vendor test an integration, and no change ticket was raised. On 17 Sep an unauthenticated external requester listed the bucket and downloaded both customer CSV files. Who this requester is is not confirmed. The exposed files held about 41,200 customer records (names, emails, phone numbers). No payment data was involved. Detection came from an external researcher's email after about 4 days. No internal alert existed for policy changes granting public access. cloud.secops re-enabled the public access block on 18 Sep and legal and privacy were informed the same day. The underlying weakness was that there was no account-level public access block and no policy guardrail against public buckets.",
+  "what_happened": [
+    {
+      "statement": "d.reyes deleted the public access block on bucket acme-crm-exports.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[0]",
+          "excerpt": "DeletePublicAccessBlock"
+        }
+      ]
+    },
+    {
+      "statement": "Shortly afterwards d.reyes applied a bucket policy on acme-crm-exports allowing object reads and bucket listing to all principals.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[1]",
+          "excerpt": "PutBucketPolicy"
+        },
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[1]",
+          "excerpt": "s3:ListBucket"
+        }
+      ]
+    },
+    {
+      "statement": "On 15 Sep the vendor-test identity fetched a small sample file from the bucket. This is consistent with the stated vendor testing purpose.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 1",
+          "excerpt": "sample_10rows.csv"
+        }
+      ]
+    },
+    {
+      "statement": "On 17 Sep an unauthenticated requester (no requester identity, curl user agent) at 198.51.100.23 listed the bucket and downloaded customers_2026Q3.csv and customers_2026Q2.csv with HTTP 200.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 2",
+          "excerpt": "REST.GET.BUCKET"
+        },
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 3",
+          "excerpt": "customers_2026Q3.csv"
+        },
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 4",
+          "excerpt": "customers_2026Q2.csv"
+        },
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 3",
+          "excerpt": "48211934"
+        }
+      ]
+    },
+    {
+      "statement": "The exposed files held about 41,200 customer records (names, emails, phone numbers) and no payment data.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 5",
+          "excerpt": "about 41,200 customer records (names, emails, phone numbers). No payment data."
+        }
+      ]
+    },
+    {
+      "statement": "On 18 Sep an external security researcher emailed that the bucket was publicly listable. This was the first report.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 3",
+          "excerpt": "Email from an external security researcher reporting the bucket was publicly listable."
+        }
+      ]
+    },
+    {
+      "statement": "cloud.secops re-enabled the public access block on the bucket at 10:55 on 18 Sep.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 4",
+          "excerpt": "cloud.secops re-enabled the public access block on the bucket."
+        },
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[2]",
+          "excerpt": "PutPublicAccessBlock"
+        }
+      ]
+    },
+    {
+      "statement": "After the block was re-enabled, a further listing request from 198.51.100.23 was denied with HTTP 403.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 5",
+          "excerpt": "\"http_status\": \"403\""
+        }
+      ]
+    },
+    {
+      "statement": "Legal and privacy were informed on 18 Sep at 12:00 to assess notification duties.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 9",
+          "excerpt": "Legal and privacy team informed 2026-09-18 12:00 to assess notification duties."
+        }
+      ]
+    }
+  ],
+  "key_event_ids": [
+    "EV001",
+    "EV002",
+    "EV004",
+    "EV005",
+    "EV006",
+    "EV007",
+    "EV008",
+    "EV010",
+    "EV011"
+  ],
+  "indicators": [],
+  "attack": [
+    {
+      "technique_id": "T1530",
+      "technique_name": "Data from Cloud Storage",
+      "tactic": "collection",
+      "evidence": [
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 3",
+          "excerpt": "customers_2026Q3.csv"
+        },
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 4",
+          "excerpt": "customers_2026Q2.csv"
+        }
+      ],
+      "confidence": 0.9,
+      "certainty": "confirmed",
+      "rationale": "An unauthenticated external requester downloaded customer data objects directly from the cloud storage bucket."
+    },
+    {
+      "technique_id": "T1619",
+      "technique_name": "Cloud Storage Object Discovery",
+      "tactic": "discovery",
+      "evidence": [
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 2",
+          "excerpt": "REST.GET.BUCKET"
+        }
+      ],
+      "confidence": 0.7,
+      "certainty": "probable",
+      "rationale": "The same external requester listed the bucket contents before downloading the files."
+    }
+  ],
+  "attack_catalog": "Enterprise ATT&CK matrix modified 2026-07-31 (ATT&CK spec 3.3.0)",
+  "immediate_cause": {
+    "statement": "d.reyes made acme-crm-exports public to let a vendor test an integration, without a change ticket.",
+    "certainty": "confirmed",
+    "evidence": [
+      {
+        "file": "notes.txt",
+        "locator": "line 2",
+        "excerpt": "made acme-crm-exports public on 14 Sep to let a vendor test an integration"
+      },
+      {
+        "file": "notes.txt",
+        "locator": "line 2",
+        "excerpt": "No change ticket was raised."
+      }
+    ]
+  },
+  "root_cause": {
+    "statement": "No account-level public access block and no policy guardrail existed to prevent a single user from making a bucket with customer data public.",
+    "certainty": "confirmed",
+    "evidence": [
+      {
+        "file": "notes.txt",
+        "locator": "line 6",
+        "excerpt": "there is no account-level public access block and no policy guardrail preventing public buckets"
+      }
+    ]
+  },
+  "contributing_factors": [
+    {
+      "statement": "The change was made without a change ticket, so it received no review or approval.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 2",
+          "excerpt": "No change ticket was raised."
+        }
+      ]
+    },
+    {
+      "statement": "The exposure stayed open for about 4 days because nothing detected or reverted the change.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 7",
+          "excerpt": "Detection came from an outside party after 4 days."
+        }
+      ]
+    }
+  ],
+  "impact": {
+    "systems_involved": [
+      "acme-crm-exports"
+    ],
+    "accounts_involved": [
+      "d.reyes"
+    ],
+    "data_affected": {
+      "statement": "Customer personal data (names, emails, phone numbers) for about 41,200 customers in two CSV files was exposed and downloaded by an external requester. No payment data was involved.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 5",
+          "excerpt": "about 41,200 customer records (names, emails, phone numbers). No payment data."
+        },
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 3",
+          "excerpt": "customers_2026Q3.csv"
+        }
+      ]
+    },
+    "operational_impact": {
+      "statement": "The evidence does not describe any operational disruption.",
+      "certainty": "unknown",
+      "evidence": []
+    },
+    "business_impact": {
+      "statement": "Legal and privacy were engaged to assess notification duties. Financial cost and the notification outcome are not stated in the evidence.",
+      "certainty": "unknown",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 9",
+          "excerpt": "to assess notification duties"
+        }
+      ]
+    }
+  },
+  "response": {
+    "milestones": {
+      "attack_start": {
+        "event_id": "EV001",
+        "timestamp": "2026-09-14T16:02:11Z",
+        "time_basis": "exact",
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[0]",
+            "excerpt": "2026-09-14T16:02:11Z"
+          }
+        ]
+      },
+      "first_detection": {
+        "event_id": "EV007",
+        "timestamp": "2026-09-18T10:30:00Z",
+        "time_basis": "timezone_assumed",
+        "sources": [
+          {
+            "file": "notes.txt",
+            "locator": "line 3",
+            "excerpt": "2026-09-18 10:30"
+          }
+        ]
+      },
+      "response_start": {
+        "event_id": "EV008",
+        "timestamp": "2026-09-18T10:55:00Z",
+        "time_basis": "timezone_assumed",
+        "sources": [
+          {
+            "file": "notes.txt",
+            "locator": "line 4",
+            "excerpt": "2026-09-18 10:55"
+          }
+        ]
+      },
+      "containment": {
+        "event_id": "EV008",
+        "timestamp": "2026-09-18T10:55:00Z",
+        "time_basis": "timezone_assumed",
+        "sources": [
+          {
+            "file": "notes.txt",
+            "locator": "line 4",
+            "excerpt": "2026-09-18 10:55"
+          }
+        ]
+      }
+    },
+    "durations": [
+      {
+        "name": "time_to_detect",
+        "start": "attack_start",
+        "end": "first_detection",
+        "seconds": 325669,
+        "approximate": true
+      },
+      {
+        "name": "time_to_respond",
+        "start": "first_detection",
+        "end": "response_start",
+        "seconds": 1500,
+        "approximate": true
+      },
+      {
+        "name": "time_to_contain",
+        "start": "first_detection",
+        "end": "containment",
+        "seconds": 1500,
+        "approximate": true
+      },
+      {
+        "name": "dwell_time",
+        "start": "attack_start",
+        "end": "containment",
+        "seconds": 327169,
+        "approximate": true
+      }
+    ]
+  },
+  "detection_gaps": [
+    {
+      "statement": "No alert existed for bucket policy changes that grant access to everyone. Detection came from an outside party after about 4 days.",
+      "certainty": "confirmed",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 7",
+          "excerpt": "no alert exists for bucket policy changes that grant access to everyone"
+        },
+        {
+          "file": "notes.txt",
+          "locator": "line 7",
+          "excerpt": "Detection came from an outside party after 4 days."
+        }
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "area": "technology",
+      "lesson": "Preventive guardrails are needed because one user could expose a customer data bucket alone. Account-level controls and policy guardrails must block public buckets.",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 6",
+          "excerpt": "no account-level public access block and no policy guardrail preventing public buckets"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-15",
+          "section": "3",
+          "title": "Public exposure of storage",
+          "excerpt": "An account-level public access block must be enabled in every cloud account."
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Storage access changes must go through an approved change ticket. The change here bypassed review entirely.",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 2",
+          "excerpt": "No change ticket was raised."
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-15",
+          "section": "1",
+          "title": "Change tickets",
+          "excerpt": "Every change to production systems, network rules, cloud permissions or storage access needs an approved change ticket."
+        }
+      ]
+    },
+    {
+      "area": "process",
+      "lesson": "Vendor testing should use scoped, time-limited credentials and test data, not public access to production exports. A vendor identity already existed and fetched a sample file.",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 2",
+          "excerpt": "to let a vendor test an integration"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-15",
+          "section": "3",
+          "title": "Public exposure of storage",
+          "excerpt": "Vendor access must use scoped, time-limited credentials and test data, never public access to production data."
+        }
+      ]
+    },
+    {
+      "area": "technology",
+      "lesson": "Detection relied on an external party. Internal alerting on public-access policy changes is needed to shorten exposure windows.",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 7",
+          "excerpt": "Detection came from an outside party after 4 days."
+        }
+      ],
+      "policy_refs": []
+    },
+    {
+      "area": "governance",
+      "lesson": "Escalation to legal and privacy was timely in this case and should remain the standard for restricted data exposure.",
+      "evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 9",
+          "excerpt": "Legal and privacy team informed 2026-09-18 12:00"
+        }
+      ],
+      "policy_refs": [
+        {
+          "doc_id": "POL-20",
+          "section": "4",
+          "title": "Incidents involving restricted data",
+          "excerpt": "must be informed within 4 hours of the security team becoming aware"
+        }
+      ]
+    }
+  ],
+  "corrective_actions": [
+    {
+      "recommendation": "Enable an account-level public access block in every cloud account and add a policy guardrail (for example an organisation-level deny) that prevents public bucket policies on non-public buckets.",
+      "priority": "critical",
+      "reason": "No account-level block or guardrail existed, which allowed a single user to expose customer data.",
+      "supporting_evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 6",
+          "excerpt": "no account-level public access block and no policy guardrail preventing public buckets"
+        }
+      ],
+      "owner_team": "Cloud Security",
+      "timeframe": "Within 7 days",
+      "expected_benefit": "Public exposure of storage cannot happen by a single user's change.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-15",
+          "section": "3",
+          "title": "Public exposure of storage",
+          "excerpt": "An account-level public access block must be enabled in every cloud account."
+        }
+      ]
+    },
+    {
+      "recommendation": "Confirm the permissive bucket policy granting access to all principals has been removed from acme-crm-exports. Also review other buckets for public policies.",
+      "priority": "critical",
+      "reason": "Only re-enabling the public access block is recorded. Removal of the public-allow policy is not recorded.",
+      "supporting_evidence": [
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[1]",
+          "excerpt": "PutBucketPolicy"
+        },
+        {
+          "file": "cloudtrail.json",
+          "locator": "Records[2]",
+          "excerpt": "PutPublicAccessBlock"
+        }
+      ],
+      "owner_team": "Cloud Security",
+      "timeframe": "Within 1 day",
+      "expected_benefit": "The exposure cannot return if the block is later disabled.",
+      "policy_refs": []
+    },
+    {
+      "recommendation": "Create an alert for bucket policy or public access block changes that grant access to everyone, routed to the security team.",
+      "priority": "high",
+      "reason": "The exposure was found by an outsider after 4 days because no alert existed.",
+      "supporting_evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 7",
+          "excerpt": "no alert exists for bucket policy changes that grant access to everyone"
+        }
+      ],
+      "owner_team": "Security Operations",
+      "timeframe": "Within 14 days",
+      "expected_benefit": "Detection within minutes instead of days.",
+      "policy_refs": []
+    },
+    {
+      "recommendation": "Complete the review of all access logs for acme-crm-exports from 14 to 18 Sep to identify every requester who read customer files. Establish the identity of 198.51.100.23. Provide results to legal and privacy to support the notification assessment.",
+      "priority": "high",
+      "reason": "Downloads of both customer files by an unauthenticated requester are confirmed, but the requester's identity is not.",
+      "supporting_evidence": [
+        {
+          "file": "s3_access_logs.csv",
+          "locator": "row 3",
+          "excerpt": "customers_2026Q3.csv"
+        },
+        {
+          "file": "notes.txt",
+          "locator": "line 8",
+          "excerpt": "unclear whether 198.51.100.23 is the researcher who reported the issue. Not confirmed."
+        }
+      ],
+      "owner_team": "Incident Response with Privacy and Legal",
+      "timeframe": "Within 3 days",
+      "expected_benefit": "An accurate scope of affected customers and a sound basis for notification decisions.",
+      "policy_refs": [
+        {
+          "doc_id": "PB-04",
+          "section": "4",
+          "title": "Data access",
+          "excerpt": "Determine whether data was read."
+        }
+      ]
+    },
+    {
+      "recommendation": "Enforce approved change tickets for storage access and permission changes. Require vendor integration testing to use scoped, time-limited credentials with test data, and give any temporary exception an owner and expiry.",
+      "priority": "high",
+      "reason": "The bucket was made public for vendor testing with no ticket, and no owner or expiry is recorded.",
+      "supporting_evidence": [
+        {
+          "file": "notes.txt",
+          "locator": "line 2",
+          "excerpt": "No change ticket was raised."
+        }
+      ],
+      "owner_team": "Cloud Platform and Change Management",
+      "timeframe": "Within 30 days",
+      "expected_benefit": "Reviewed, time-bound vendor access that avoids public production data.",
+      "policy_refs": [
+        {
+          "doc_id": "POL-15",
+          "section": "1",
+          "title": "Change tickets",
+          "excerpt": "Every change to production systems, network rules, cloud permissions or storage access needs an approved change ticket."
+        },
+        {
+          "doc_id": "POL-15",
+          "section": "3",
+          "title": "Public exposure of storage",
+          "excerpt": "Vendor access must use scoped, time-limited credentials and test data, never public access to production data."
+        },
+        {
+          "doc_id": "POL-15",
+          "section": "2",
+          "title": "Temporary exceptions",
+          "excerpt": "need a named owner and an expiry of at most 30 days"
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Is 198.51.100.23 the external researcher who reported the issue? This is not confirmed, so it is not listed as a malicious indicator.",
+    "Was the public-allow bucket policy removed, or only the public access block re-enabled?",
+    "Were there other readers, or other copies of the customer files, beyond those in the access log extract? The completeness of the log is not stated.",
+    "Why was a vendor-test identity available if vendor access still required public exposure? Was public access actually needed for the test?",
+    "Who made the request to 198.51.100.23 after containment at 11:02 on 18 Sep? It was denied with 403.",
+    "What are the notification obligations and the financial cost? The assessment is pending."
+  ],
+  "remaining_risks": [
+    "Customer data (names, emails, phone numbers) for about 41,200 customers was downloaded and may be held by an unidentified party.",
+    "The permissive bucket policy may still be present; its removal is not recorded.",
+    "No account-level public access block or guardrail is confirmed in place, so the same exposure could recur."
+  ],
+  "timeline": {
+    "incident_id": "INC-2026-003",
+    "events": [
+      {
+        "event_id": "EV001",
+        "timestamp": "2026-09-14T16:02:11Z",
+        "time_basis": "exact",
+        "description": "eventName=DeletePublicAccessBlock; userName=d.reyes",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[0]",
+            "excerpt": "2026-09-14T16:02:11Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV002",
+        "timestamp": "2026-09-14T16:02:48Z",
+        "time_basis": "exact",
+        "description": "policy={\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\",\"s3:ListBucket\"]}; eventName=PutBucketPolicy; userName=d.reyes",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[1]",
+            "excerpt": "2026-09-14T16:02:48Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV003",
+        "timestamp": "2026-09-15T10:04:12Z",
+        "time_basis": "exact",
+        "description": "operation=REST.GET.OBJECT; key=sample_10rows.csv; remote_ip=192.0.2.44",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "s3_access_logs.csv",
+            "locator": "row 1",
+            "excerpt": "2026-09-15T10:04:12Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV004",
+        "timestamp": "2026-09-17T03:11:05Z",
+        "time_basis": "exact",
+        "description": "operation=REST.GET.BUCKET; remote_ip=198.51.100.23",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "s3_access_logs.csv",
+            "locator": "row 2",
+            "excerpt": "2026-09-17T03:11:05Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV005",
+        "timestamp": "2026-09-17T03:12:40Z",
+        "time_basis": "exact",
+        "description": "operation=REST.GET.OBJECT; key=customers_2026Q3.csv; remote_ip=198.51.100.23",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "s3_access_logs.csv",
+            "locator": "row 3",
+            "excerpt": "2026-09-17T03:12:40Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV006",
+        "timestamp": "2026-09-17T03:14:02Z",
+        "time_basis": "exact",
+        "description": "operation=REST.GET.OBJECT; key=customers_2026Q2.csv; remote_ip=198.51.100.23",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "s3_access_logs.csv",
+            "locator": "row 4",
+            "excerpt": "2026-09-17T03:14:02Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV007",
+        "timestamp": "2026-09-18T10:30:00Z",
+        "time_basis": "timezone_assumed",
+        "description": "2026-09-18 10:30 Email from an external security researcher reporting the bucket was publicly listable.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "notes.txt",
+            "locator": "line 3",
+            "excerpt": "2026-09-18 10:30"
+          }
+        ],
+        "rationale": "timestamp had no timezone; assumed UTC"
+      },
+      {
+        "event_id": "EV008",
+        "timestamp": "2026-09-18T10:55:00Z",
+        "time_basis": "timezone_assumed",
+        "description": "2026-09-18 10:55 cloud.secops re-enabled the public access block on the bucket.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "notes.txt",
+            "locator": "line 4",
+            "excerpt": "2026-09-18 10:55"
+          }
+        ],
+        "rationale": "timestamp had no timezone; assumed UTC"
+      },
+      {
+        "event_id": "EV009",
+        "timestamp": "2026-09-18T10:55:30Z",
+        "time_basis": "exact",
+        "description": "eventName=PutPublicAccessBlock; userName=cloud.secops",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "cloudtrail.json",
+            "locator": "Records[2]",
+            "excerpt": "2026-09-18T10:55:30Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV010",
+        "timestamp": "2026-09-18T11:02:19Z",
+        "time_basis": "exact",
+        "description": "operation=REST.GET.BUCKET; remote_ip=198.51.100.23",
+        "status": "confirmed",
+        "confidence": 0.95,
+        "sources": [
+          {
+            "file": "s3_access_logs.csv",
+            "locator": "row 5",
+            "excerpt": "2026-09-18T11:02:19Z"
+          }
+        ],
+        "rationale": null
+      },
+      {
+        "event_id": "EV011",
+        "timestamp": "2026-09-18T12:00:00Z",
+        "time_basis": "timezone_assumed",
+        "description": "Legal and privacy team informed 2026-09-18 12:00 to assess notification duties.",
+        "status": "confirmed",
+        "confidence": 0.8,
+        "sources": [
+          {
+            "file": "notes.txt",
+            "locator": "line 9",
+            "excerpt": "2026-09-18 12:00"
+          }
+        ],
+        "rationale": "timestamp had no timezone; assumed UTC"
+      }
+    ],
+    "undated": [],
+    "warnings": []
+  },
+  "validation_log": [
+    "attempt 1: 0 validation problem(s)"
+  ],
+  "kb_used": [
+    "POL-20#4",
+    "POL-15#3",
+    "PIR-2025-031#1",
+    "POL-15#1",
+    "POL-20#1",
+    "SEV-01#2",
+    "PB-04#4",
+    "POL-15#2"
+  ],
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-24T09:03:04.589055Z",
+  "file_hashes": {
+    "cloudtrail.json": "2e95dfb2fe79457d28689143365fcef65b1fc1735b86ffcbc8398af37ca56df2",
+    "notes.txt": "de6dd03336b172a557a3c3cd86d25d7ee4c0445433d432ad74862e74f206d9be",
+    "s3_access_logs.csv": "94817772e13ff82dbae014dfdeb67d9a61dad58b8510ffdf36fe2c8eae822fcc"
+  }
+}

@@ -248,6 +248,18 @@ and rejected (see results.md): too many false alarms, no true catches.
 In prose the model still writes gaps itself ("about 45 minutes later"). All that
 were spot-checked were right, but they are not verified.
 
+## Dashboard (Phase 10)
+
+- `dashboard_data.py` holds all logic (loading, verification, scoring, table rows)
+  with no Streamlit import, so it is unit-tested directly. `streamlit_app.py` only
+  displays. Two `AppTest` smoke tests render every tab.
+- Demo mode by default: saved JSON reports only. Live LLM generation needs both
+  `PMGEN_LIVE=1` and an API key, so a public deployment cannot spend credit.
+- Each page re-runs the verifier and the ground-truth scoring live, so the PASS
+  badge and scores are computed, not copied from a file.
+- Not built yet: uploading new evidence through the app (the evidence must be in
+  `data/incidents/` for the verifier to re-read it).
+
 ## Safety rules enforced in code (not just in prompts)
 
 - A `confirmed` timeline event must cite evidence and have a timestamp.
