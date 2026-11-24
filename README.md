@@ -1,5 +1,7 @@
 # Cybersecurity Incident Postmortem Generator
 
+[![tests](https://github.com/NamanSaini04/incident-postmortem-generator/actions/workflows/tests.yml/badge.svg)](https://github.com/NamanSaini04/incident-postmortem-generator/actions/workflows/tests.yml)
+
 Turns incident evidence (logs, alerts, analyst notes) into a structured
 postmortem where every claim cites its source. **Defensive use only.**
 Synthetic data only.
@@ -8,7 +10,22 @@ Synthetic data only.
 (no sign-up, no API calls; it shows 6 saved reports with their evidence and an
 independent verification of every citation)
 
-## Status: Phase 14 of 15 complete (technical report written)
+**Technical report:** [`docs/technical_report.md`](docs/technical_report.md)
+([PDF](docs/Cybersecurity_Incident_Postmortem_Generator_Technical_Report.pdf)) ·
+**Every run, prediction and correction:** [`docs/results.md`](docs/results.md)
+
+### Results at a glance (6 synthetic incidents; details and limits in the report)
+
+| | |
+|---|---|
+| Indicators extracted / timeline accuracy | 138/138 / 100% over 36 messy cases |
+| Category and severity correct | 18/18 reports, identical across 3 runs |
+| MITRE ATT&CK | 94% recall, 0 forbidden techniques used |
+| Citations confirmed by the independent verifier | 1401/1401 |
+| Hallucination traps avoided (checked by hand) | 120/120 |
+| Reviewer agent: planted errors caught | 28/29 |
+
+## Status: all 15 phases complete
 
 | Phase | What | State |
 |---|---|---|
@@ -23,7 +40,7 @@ independent verification of every citation)
 | 12 | Evaluation suite: the 10 measures in one command, no API calls | Done. See `docs/evaluation.md` |
 | 13 | Reviewer agent: checks each claim against its cited records; pipeline trace | Done. 28/29 planted errors caught; found and helped fix certainty inflation |
 | 14 | Technical report | Done. [`docs/technical_report.md`](docs/technical_report.md) and PDF |
-| 15 | Final testing and documentation | Next |
+| 15 | Final testing and documentation | Done. Fresh-install test, CI on Python 3.11 and 3.12 |
 
 Across all runs: 116/116 hallucination traps avoided (checked by hand).
 
@@ -34,10 +51,15 @@ Details in `docs/results.md`.
 
 ## Quick start
 
+Run every command from the repository folder: the sample incidents and the knowledge base are read from
+`data/`, not installed with the package. Only commands marked with a cost call the API.
+
 ```bash
+git clone https://github.com/NamanSaini04/incident-postmortem-generator.git
+cd incident-postmortem-generator
 python -m venv .venv && source .venv/bin/activate
 pip install ".[dev,llm,app]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 351 passed (dashboard and PDF tests skip if their libraries are missing)
+pytest -q          # expect: 352 passed (dashboard and PDF tests skip if their libraries are missing)
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline
@@ -48,11 +70,11 @@ bash scripts/ab_test.sh                              # with vs without RAG, 12 A
 python -m pmgen.attack T1059.001                     # look up an ATT&CK ID in the official catalogue
 bash scripts/run_phase7.sh                           # 6 runs + ATT&CK review table (~$0.60-0.80)
 bash scripts/run_phase8.sh                           # 6 runs + root cause/impact/timing table (~$0.75)
-python -m pmgen.verify reports/phase8/               # re-check saved reports, no API call
-python -m pmgen.pdf reports/phase8/ --out reports/pdf # Cybersecurity_Incident_Postmortem_<ID>.pdf
-python -m pmgen.evalsuite reports/phase7 reports/phase8 --out docs/evaluation.md   # all 10 measures, no API calls
-python -m pmgen.agents review reports/phase8 --plant --dry-run   # reviewer prompt, no API call
-python -m pmgen.agents review reports/phase8 --plant             # reviewer + planted-error benchmark (~$0.15-0.30)
+python -m pmgen.verify docs/sample_reports/phase8/   # re-check the saved reports, no API call
+python -m pmgen.pdf docs/sample_reports/phase8/ --out reports/pdf   # Cybersecurity_Incident_Postmortem_<ID>.pdf
+python -m pmgen.evalsuite docs/sample_reports/phase8 --out reports/evaluation.md   # all 10 measures, no API calls
+python -m pmgen.agents review docs/sample_reports/phase8 --plant --dry-run   # reviewer prompt, no API call
+python -m pmgen.agents review docs/sample_reports/phase8 --plant   # reviewer + planted-error benchmark (~$0.15-0.30)
 ```
 
 ## Running the LLM step
@@ -92,7 +114,7 @@ Uploading new evidence files through the app is not supported yet.
 ## Verifying a saved report (no API key needed)
 
 ```bash
-python -m pmgen.verify reports/phase8/          # every *_postmortem*.json in the folder
+python -m pmgen.verify docs/sample_reports/phase8/   # every *_postmortem*.json in the folder
 ```
 
 Re-reads the original evidence files and re-checks the finished report from
@@ -130,7 +152,7 @@ src/pmgen/samples.py      Load bundled incidents
 data/incidents/INC-*/     Evidence files + ground_truth.json
 docs/architecture.md      Design, pipeline diagram, roadmap
 docs/sample_reports/      Real generated reports, one folder per phase
-tests/                    351 tests: schema rules, validator, verifier, scoring, dashboard, PDF, evaluation, agents, report
+tests/                    352 tests: schema rules, validator, verifier, scoring, dashboard, PDF, evaluation, agents, report
 ```
 
 See `docs/architecture.md` for the design and `docs/results.md` for real-model results.

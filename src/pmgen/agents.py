@@ -383,6 +383,10 @@ def main(argv: list[str] | None = None) -> int:
         print(__doc__, file=sys.stderr)
         return 2
     cmd, target, rest = argv[0], Path(argv[1]), argv[2:]
+    if not target.exists():
+        print(f"not found: {target}  (saved reports in the repository are in docs/sample_reports/phase8/)",
+              file=sys.stderr)
+        return 2
     model = rest[rest.index("--model") + 1] if "--model" in rest else None
     incidents = find_data_dir()
     if "--dry-run" in rest:

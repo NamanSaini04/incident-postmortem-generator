@@ -1,4 +1,4 @@
-# Architecture (Phase 1)
+# Architecture
 
 ## Core design rule
 
@@ -17,7 +17,7 @@ or change them. In a security report that's the worst possible failure.
 
 ```mermaid
 flowchart TD
-    A[Evidence files<br/>TXT / CSV / JSON / PDF / DOCX] --> B[Ingestion<br/>hash + store raw text]
+    A[Evidence files<br/>TXT / CSV / JSON] --> B[Ingestion<br/>hash + store raw text]
     B --> C[Deterministic extraction<br/>parsers + regex, every fact keeps EvidenceRef]
     C --> D[Timeline builder<br/>normalise to UTC, sort, de-duplicate]
     D --> E[Evidence pack<br/>Pydantic JSON]
@@ -25,30 +25,41 @@ flowchart TD
     F --> G[Validator<br/>citations resolve? excerpt matches?<br/>confirmed claims have evidence?]
     G -->|fails| F
     G --> H[Report model]
-    H --> I[Markdown / PDF / Streamlit]
-    J[(V2: RAG knowledge base<br/>playbooks, ATT&CK, policies)] -.-> F
+    H --> I[Markdown / PDF / Streamlit dashboard]
+    J[(Knowledge base<br/>playbooks, policies, past reviews<br/>BM25)] --> F
+    M[(ATT&CK catalogue)] --> G
+    H -.-> G2[Reviewer agent<br/>does each record support its claim?]
+    H --> V[Verifier<br/>re-check saved report]
     K[Ground truth<br/>synthetic incidents] -.-> L[Evaluation harness]
     H -.-> L
 ```
 
-## Module map
+## Module ## Module map
 
-| Module | Phase | Status |
+| Module | Phase | Purpose |
 |---|---|---|
-| `schemas.py` — data contract plus safety rules | 1 | Done |
-| `provenance.py` — resolve a citation to its source record | 1 | Done |
-| `samples.py` — load synthetic incidents and ground truth | 1 | Done |
-| `ingest.py` — read TXT/CSV/JSON, hash, split into citable records | 2 | Done (PDF/DOCX deferred) |
-| `extract.py` — regex, field mapping, cross-source user/host linking | 3 | Done |
-| `timeline.py` — order, date-fill, merge duplicates | 4 | Done |
-| `evidence_pack.py`, `llm.py`, `postmortem.py` — LLM draft + Markdown report | 5 | Done |
-| `validate.py` — claim vs evidence checks | 5 (basic), 9 (full) | Basic done |
-| `kb.py`, `abtest.py` — policy retrieval and A/B summary | 6 | Done |
-| `attack.py` — ATT&CK catalogue, ID checks, mapping scores | 7 | Done |
-| Markdown report (5), PDF (11) | 5, 11 | Markdown done |
-| `evaluate.py` + `variants.py` — timeline scoring on clean and messy data | 4 (basic), 12 (full) | Basic done |
+| `schemas.py` | 1 | Data contract and safety rules (Pydantic) |
+| `provenance.py` | 1 | Resolve a citation to its source record |
+| `samples.py` | 1 | Load synthetic incidents and answer keys |
+| `ingest.py` | 2 | Read TXT/CSV/JSON, hash files, split into citable records |
+| `extract.py` | 3 | Observables by regex, known fields and cross-source linking |
+| `timeline.py` | 4 | UTC ordering, date inference, duplicate merging |
+| `evaluate.py`, `variants.py` | 4, 12 | Timeline and report scoring; messy evidence variants |
+| `evidence_pack.py`, `llm.py`, `postmortem.py` | 5 | Evidence pack, Anthropic client, generation, Markdown report |
+| `validate.py` | 5, 8, 9 | Draft checks while generating: citations, quotes, certainty, IOCs, ATT&CK, impact, milestones |
+| `kb.py`, `abtest.py` | 6 | Policy retrieval (BM25) and A/B summaries |
+| `attack.py` | 7 | Official ATT&CK catalogue and ID checks |
+| `verify.py` | 9 | Independent re-check of saved reports |
+| `dashboard_data.py`, `streamlit_app.py` | 10 | Dashboard (demo mode) |
+| `pdf.py` | 11 | Incident PDF export |
+| `evalsuite.py` | 12 | The 10 evaluation measures across saved runs |
+| `agents.py` | 13 | Reviewer agent, planted-error benchmark, pipeline trace |
+| `report_pdf.py` | 14 | Technical report PDF from Markdown |
 
-## Extraction (Phase 3): observables, not IOCs
+Not built (see the technical report, section 14): PDF/DOCX evidence input, a FastAPI backend,
+a database, embeddings, and evidence upload in the dashboard.
+
+ion (Phase 3): observables, not IOCs
 
 Extraction finds every observable: IPs, domains, URLs, emails, hashes, users,
 hosts, processes, file paths, cloud resources and timestamps. It does **not**

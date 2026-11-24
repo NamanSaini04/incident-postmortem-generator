@@ -113,3 +113,15 @@ def test_counts_claims_removed_during_generation():
     pm = generate(pack, FakeClient([d, d]))
     r = verify(pm, DATA_DIR / INC)
     assert r.ok and r.claims_removed == 1
+
+
+def test_missing_folder_is_a_message_not_a_crash(tmp_path, capsys):
+    from pmgen.pdf import main as pdf_main
+    from pmgen.agents import main as agents_main
+    from pmgen.evalsuite import main as eval_main
+    missing = str(tmp_path / "reports" / "phase8")
+    assert main([missing]) == 2
+    assert pdf_main([missing]) == 2
+    assert agents_main(["review", missing, "--dry-run"]) == 2
+    assert eval_main([missing]) == 2
+    assert "docs/sample_reports/phase8" in capsys.readouterr().err

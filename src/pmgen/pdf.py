@@ -420,10 +420,8 @@ def main(argv: list[str] | None = None) -> int:
         i = argv.index("--out")
         out_dir = Path(argv[i + 1])
         argv = argv[:i] + argv[i + 2:]
-    files: list[Path] = []
-    for a in argv:
-        p = Path(a)
-        files += sorted(p.glob("*_postmortem.json")) if p.is_dir() else [p]
+    from .verify import _report_files
+    files = [f for f in _report_files(argv) if not f.name.endswith("_norag.json")]
     if not files:
         print("usage: python -m pmgen.pdf REPORT.json|FOLDER [...] [--out DIR]", file=sys.stderr)
         return 2

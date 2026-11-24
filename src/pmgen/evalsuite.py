@@ -343,7 +343,11 @@ def main(argv: list[str] | None = None) -> int:
         i = argv.index("--out")
         out = Path(argv[i + 1])
         argv = argv[:i] + argv[i + 2:]
-    runs = load_runs([Path(a) for a in argv])
+    for a in argv:
+        if not Path(a).exists():
+            print(f"not found: {a}  (saved reports in the repository are in docs/sample_reports/phase8/)",
+                  file=sys.stderr)
+    runs = load_runs([Path(a) for a in argv if Path(a).exists()])
     if not runs:
         print("usage: python -m pmgen.evalsuite RUN_FOLDER [RUN_FOLDER ...] [--out docs/evaluation.md]",
               file=sys.stderr)

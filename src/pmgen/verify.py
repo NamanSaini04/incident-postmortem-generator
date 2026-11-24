@@ -219,9 +219,14 @@ def render(r: VerifyResult) -> str:
 
 
 def _report_files(args: list[str]) -> list[Path]:
+    """Report JSON files named directly or found in folders. A path that does not exist is reported, not crashed on."""
     out: list[Path] = []
     for a in args:
         p = Path(a)
+        if not p.exists():
+            print(f"not found: {p}  (saved reports in the repository are in docs/sample_reports/phase8/; "
+                  "reports/ is created by your own runs)", file=sys.stderr)
+            continue
         out += sorted(p.glob("*_postmortem*.json")) if p.is_dir() else [p]
     return out
 
