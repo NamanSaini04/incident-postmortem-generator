@@ -431,3 +431,14 @@ because these checks repeat what the validator already enforced.
 718 items checked, 0 failures, 0 claims removed during generation. This confirms
 the saved reports are consistent with their evidence; it is not new evidence of
 report quality (that is the Phase 8 scoring and trap checks).
+
+## Phase 11: PDF export (2026-11-24)
+
+No model run needed: the PDF is built from saved reports.
+- Tests check content, not looks: every required section, "Page X of Y", the
+  verifier result, citation numbers identical to the Markdown, unsafe characters
+  and markup handled.
+- Looks were checked by rendering pages to images. Found and fixed before
+  release: invisible table headers (dark text on navy), a chart legend running off
+  the page, a table split leaving one orphan row, and a section heading left at
+  the bottom of a page away from its table.

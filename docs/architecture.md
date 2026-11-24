@@ -260,6 +260,20 @@ were spot-checked were right, but they are not verified.
 - Not built yet: uploading new evidence through the app (the evidence must be in
   `data/incidents/` for the verifier to re-read it).
 
+## PDF export (Phase 11)
+
+- `pdf.py` builds the PDF with ReportLab: no browser or Chrome, so it also runs
+  on Streamlit Community Cloud. Same content and the same [E#]/[P#] citation
+  numbers as the Markdown report, so a reader can move between the two.
+- Title page with metadata, the DRAFT banner and the verifier result; a timeline
+  chart drawn directly (blue = exact time, amber = inferred); tables for the
+  timeline, IOCs, ATT&CK, impact, response timing and actions; references with
+  evidence quotes, policy quotes, file hashes and the validation log; "Page X of Y".
+- Built-in PDF fonts cover Latin-1 only, so a few symbols are mapped (-> for
+  arrows) and anything else becomes "?". All text is XML-escaped, so model output
+  cannot inject formatting.
+- Light layout on purpose: it is meant to be printed and read, unlike the dark dashboard.
+
 ## Safety rules enforced in code (not just in prompts)
 
 - A `confirmed` timeline event must cite evidence and have a timestamp.

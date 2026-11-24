@@ -4,7 +4,11 @@ Turns incident evidence (logs, alerts, analyst notes) into a structured
 postmortem where every claim cites its source. **Defensive use only.**
 Synthetic data only.
 
-## Status: Phase 10 of 15 complete (dashboard built; public deployment pending)
+**Live demo:** [incident-postmortem-generator-fpcsgufbx6gwrke2fyxqpm.streamlit.app](https://incident-postmortem-generator-fpcsgufbx6gwrke2fyxqpm.streamlit.app/)
+(no sign-up, no API calls; it shows 6 saved reports with their evidence and an
+independent verification of every citation)
+
+## Status: Phase 11 of 15 complete (dashboard live, PDF export)
 
 | Phase | What | State |
 |---|---|---|
@@ -14,9 +18,10 @@ Synthetic data only.
 | 7 | MITRE ATT&CK mapping, checked against the official catalogue | Done. Recall 92%, 0 forbidden techniques |
 | 8 | Root cause vs immediate cause, impact scope, response timing | Done. Milestones 24/24, 0 forbidden systems/accounts |
 | 9 | Independent verifier for saved reports | Done. 6/6 reports pass, 718 items, 0 failures |
-| 10 | Streamlit dashboard (demo mode: saved reports, no API calls) | Done. Public link pending |
-| 11 | Incident PDF export | Next |
-| 12-15 | Evaluation write-up, optional agents, technical report, deployment | Planned |
+| 10 | Streamlit dashboard (demo mode: saved reports, no API calls) | Done. Live on Streamlit Community Cloud |
+| 11 | Incident PDF export (title page, timeline chart, tables, page numbers) | Done. Also a button in the dashboard |
+| 12 | Evaluation framework write-up | Next |
+| 13-15 | Optional agents, technical report, final testing and documentation | Planned |
 
 Across all runs: 116/116 hallucination traps avoided (checked by hand).
 
@@ -29,8 +34,8 @@ Details in `docs/results.md`.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install ".[dev,llm]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 313 passed (2 dashboard tests skip if streamlit is not installed)
+pip install ".[dev,llm,app]"   # re-run after pulling new code (see note below)
+pytest -q          # expect: 320 passed (dashboard and PDF tests skip if their libraries are missing)
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline
@@ -42,6 +47,7 @@ python -m pmgen.attack T1059.001                     # look up an ATT&CK ID in t
 bash scripts/run_phase7.sh                           # 6 runs + ATT&CK review table (~$0.60-0.80)
 bash scripts/run_phase8.sh                           # 6 runs + root cause/impact/timing table (~$0.75)
 python -m pmgen.verify reports/phase8/               # re-check saved reports, no API call
+python -m pmgen.pdf reports/phase8/ --out reports/pdf # Cybersecurity_Incident_Postmortem_<ID>.pdf
 ```
 
 ## Running the LLM step
@@ -110,12 +116,13 @@ src/pmgen/attack.py        MITRE ATT&CK catalogue lookups and ID checks
 src/pmgen/verify.py        Independent re-check of a saved report against the evidence
 src/pmgen/dashboard_data.py  Data for the dashboard (tested without Streamlit)
 streamlit_app.py           The dashboard
+src/pmgen/pdf.py           PDF export (ReportLab, no browser needed)
 src/pmgen/provenance.py   Resolve "file / row N" back to the source record
 src/pmgen/samples.py      Load bundled incidents
 data/incidents/INC-*/     Evidence files + ground_truth.json
 docs/architecture.md      Design, pipeline diagram, roadmap
 docs/sample_reports/      Real generated reports, one folder per phase
-tests/                    313 tests: schema rules, validator, verifier, scoring, dashboard
+tests/                    320 tests: schema rules, validator, verifier, scoring, dashboard, PDF
 ```
 
 See `docs/architecture.md` for the design and `docs/results.md` for real-model results.

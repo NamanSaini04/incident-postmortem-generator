@@ -176,10 +176,12 @@ with tabs[6]:
 
 with tabs[7]:
     md = render_markdown(pm)
-    d1, d2 = st.columns(2)
+    from pmgen.pdf import pdf_bytes, pdf_filename
+    d0, d1, d2 = st.columns(3)
+    d0.download_button("Download PDF", pdf_bytes(pm, b.check), file_name=pdf_filename(pm.incident_id),
+                       mime="application/pdf", type="primary")
     d1.download_button("Download Markdown", md, file_name=f"{pm.incident_id}_postmortem.md")
     d2.download_button("Download JSON", pm.model_dump_json(indent=2), file_name=f"{pm.incident_id}_postmortem.json")
-    st.caption("PDF export is Phase 11.")
     st.markdown(md)
 
 with tabs[8]:
