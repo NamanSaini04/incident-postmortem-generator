@@ -168,9 +168,9 @@ def timeline_drawing(pm: Postmortem, width: float = CONTENT_W) -> Drawing | None
 class _NumberedCanvas(rl_canvas.Canvas):
     """Adds 'Page X of Y' and a running header; needs all pages first to know Y."""
 
-    def __init__(self, *args, header: str = "", **kwargs):
+    def __init__(self, *args, header: str = "", right: str = "DRAFT: requires human review", **kwargs):
         super().__init__(*args, **kwargs)
-        self._pages, self._header = [], header
+        self._pages, self._header, self._right = [], header, right
 
     def showPage(self):  # noqa: N802 (ReportLab API)
         self._pages.append(dict(self.__dict__))
@@ -184,7 +184,7 @@ class _NumberedCanvas(rl_canvas.Canvas):
                 self.setFont("Helvetica", 7.5)
                 self.setFillColor(GREY)
                 self.drawString(MARGIN, PAGE_H - 12 * mm, self._header)
-                self.drawRightString(PAGE_W - MARGIN, PAGE_H - 12 * mm, "DRAFT: requires human review")
+                self.drawRightString(PAGE_W - MARGIN, PAGE_H - 12 * mm, self._right)
                 self.setStrokeColor(LINE)
                 self.line(MARGIN, PAGE_H - 13.5 * mm, PAGE_W - MARGIN, PAGE_H - 13.5 * mm)
             self.setFont("Helvetica", 7.5)

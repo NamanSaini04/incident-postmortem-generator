@@ -271,7 +271,7 @@ Reports: `docs/sample_reports/phase7/`.
 | **Mean** | **92%** | **92%** | **100% (scored)** | **0** | |
 
 No mapping was removed by the validator (every ID was a current ATT&CK
-technique). All 26 forbidden (trap) techniques were avoided, including T1566
+technique). All forbidden (trap) techniques were avoided (17 in the answer keys; this line first said 26, corrected 2026-11-24 while writing the technical report), including T1566
 for INC-002 (no email evidence) and T1041/T1567 for the ransom note's
 unverified theft claim. Text traps: 23/23 again (92/92 across all runs).
 
