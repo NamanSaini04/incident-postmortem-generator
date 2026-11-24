@@ -297,3 +297,30 @@ unverified theft claim. Text traps: 23/23 again (92/92 across all runs).
   fact in the summary. Because the model's own label says confirmed, the hedge
   check cannot see it. This is now the most consistent weakness.
 - Cost: 6 runs at about $0.10 each.
+
+## Phase 8 pre-registration (written before any API run)
+
+Answer key added to every `ground_truth.json` before running the model:
+
+- `response_milestones`: acceptable source records for each of the 4 milestones.
+  All 6 x 4 map to real timeline events (enforced by a test).
+- `impact`: required, acceptable and forbidden systems/accounts. Forbidden traps:
+  INC-001 `a.khan` (targeted, not compromised) and `SharePoint` (only suspected).
+
+Metrics: milestone accuracy (share of the 4 that match), systems/accounts recall
+and precision, scope forbidden hits, immediate cause present.
+
+Predictions (to be checked, not tuned against):
+
+- Most likely milestone error: `response_start`. INC-002, INC-004 and INC-006
+  notes show an alert sat untriaged; the model may pick the alert, or the
+  containment action, instead of the pickup.
+- INC-005: the DLP alert and the upload are merged into one event (EV004), so
+  attack start may equal first detection; time to detect 0s is then correct by
+  construction, not a finding.
+- INC-003: durations will be marked approximate (researcher email has no timezone).
+- Scope: expect at least one extra system (e.g. a responder tool or the attacker
+  domain) to lower precision; expect 0 forbidden hits.
+
+Pass bar: mean milestone accuracy >= 75%, 0 scope forbidden hits, traps still all
+avoided. Cost: 6 runs, about $0.60.

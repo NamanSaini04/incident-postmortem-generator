@@ -156,5 +156,59 @@
   "attack_forbidden": [
     "T1078",
     "T1537"
-  ]
+  ],
+  "response_milestones": {
+    "attack_start": [
+      {
+        "file": "cloudtrail.json",
+        "locator": "Records[0]"
+      },
+      {
+        "file": "cloudtrail.json",
+        "locator": "Records[1]"
+      },
+      {
+        "file": "s3_access_logs.csv",
+        "locator": "row 2"
+      }
+    ],
+    "first_detection": [
+      {
+        "file": "notes.txt",
+        "locator": "line 3"
+      }
+    ],
+    "response_start": [
+      {
+        "file": "notes.txt",
+        "locator": "line 4"
+      },
+      {
+        "file": "cloudtrail.json",
+        "locator": "Records[2]"
+      }
+    ],
+    "containment": [
+      {
+        "file": "notes.txt",
+        "locator": "line 4"
+      },
+      {
+        "file": "cloudtrail.json",
+        "locator": "Records[2]"
+      }
+    ]
+  },
+  "impact": {
+    "systems": [
+      "acme-crm-exports"
+    ],
+    "systems_acceptable": [],
+    "systems_forbidden": [],
+    "accounts": [],
+    "accounts_acceptable": [
+      "d.reyes"
+    ],
+    "accounts_forbidden": []
+  }
 }

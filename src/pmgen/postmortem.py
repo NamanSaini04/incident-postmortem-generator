@@ -73,7 +73,17 @@ Hard rules:
    probable and evidence citations (R...). Do not map behaviour that analysts only suspect, that the attacker
    claims, or that is "not checked"/"not confirmed". Do not map responder actions. Code checks every ID against
    the official ATT&CK catalogue and fills in names, so give IDs only.
-14. Be concise and specific. No filler."""
+14. Root cause analysis: "immediate_cause" is what directly triggered the incident (e.g. a password typed into a
+   fake page); "root_cause" is the underlying weakness that let it succeed. Both are findings with certainty.
+15. Impact: list systems_involved and accounts_involved exactly as named in the evidence (code rejects names that
+   are not in it). Include only those the attacker or insider used, compromised, or that held affected data;
+   not responder accounts, and not systems that were only suspected. Give data_affected, operational_impact and
+   business_impact as findings; use certainty "unknown" with no citations when the evidence does not say
+   (e.g. financial cost).
+16. Response milestones: give the timeline event ID (EV...) for attack_start, first_detection (first alert or
+   report), response_start (a responder starts working on it) and containment (first containment action), or
+   null if the evidence has no such event. Do NOT compute durations; code does that from the timestamps.
+17. Be concise and specific. No filler."""
 
 
 def build_user_prompt(pack: EvidencePack, issues: list[Issue] | None = None, previous: dict | None = None) -> str:
@@ -184,6 +194,15 @@ class _Cites:
         return " " + "".join(f"[E{n}]" for n in sorted(set(nums))) if nums else ""
 
 
+def fmt_duration(seconds: int) -> str:
+    s = abs(seconds)
+    d, rem = divmod(s, 86400)
+    h, rem = divmod(rem, 3600)
+    m, sec = divmod(rem, 60)
+    parts = [f"{d}d"] * bool(d) + [f"{h}h"] * bool(h) + [f"{m}m"] * bool(m) + [f"{sec}s"] * (bool(sec) and not d)
+    return ("-" if seconds < 0 else "") + (" ".join(parts) or "0s")
+
+
 def _esc(s: str) -> str:
     return s.replace("|", "\\|").replace("\n", " ")
 
@@ -250,15 +269,43 @@ def render_markdown(pm: Postmortem) -> str:
     L.append("")
 
     L += ["## 6. Root cause", ""]
+    if pm.immediate_cause:
+        ic = pm.immediate_cause
+        L += [f"**Immediate cause [{ic.certainty.value}]:** {ic.statement}{cite(ic.evidence)}", ""]
     if pm.root_cause:
         L.append(f"**[{pm.root_cause.certainty.value}]** {pm.root_cause.statement}{cite(pm.root_cause.evidence)}")
     else:
         L.append("_Not determined. The draft root cause failed validation (see log)._")
     L.append("")
     findings("### Contributing factors", pm.contributing_factors, "None validated.")
-    findings("## 7. Detection gaps", pm.detection_gaps, "None validated.")
 
-    L += ["## 8. Lessons learned", ""]
+    L += ["## 7. Impact assessment", "",
+          f"- **Systems involved:** {', '.join(f'`{s}`' for s in pm.impact.systems_involved) or 'none identified'}",
+          f"- **Accounts involved:** {', '.join(f'`{a}`' for a in pm.impact.accounts_involved) or 'none identified'}"]
+    for label, f in (("Data affected", pm.impact.data_affected), ("Operational impact", pm.impact.operational_impact),
+                     ("Business impact", pm.impact.business_impact)):
+        L.append(f"- **{label}:** " + (f"[{f.certainty.value}] {f.statement}{cite(f.evidence)}" if f else "_not assessed_"))
+    L.append("")
+
+    L += ["## 8. Response analysis", "",
+          "Milestones chosen by the model from the timeline; durations computed by code from timestamps.", ""]
+    if pm.response:
+        L += ["| Milestone | Event | Time (UTC) | Time basis |", "|---|---|---|---|"]
+        for name, m in pm.response.milestones.items():
+            label = name.replace("_", " ")
+            L.append(f"| {label} | {m.event_id} | {m.timestamp:%Y-%m-%d %H:%M:%S} | {m.time_basis.value.replace('_', ' ')} |"
+                     if m else f"| {label} | - | not in evidence | - |")
+        L += ["", "| Measure | From → to | Duration |", "|---|---|---|"]
+        for dd in pm.response.durations:
+            approx = " (approximate: inferred time)" if dd.approximate else ""
+            L.append(f"| {dd.name.replace('_', ' ')} | {dd.start.replace('_', ' ')} → {dd.end.replace('_', ' ')} "
+                     f"| {fmt_duration(dd.seconds)}{approx} |")
+    else:
+        L.append("_Not computed: the milestones failed validation (see log)._")
+    L.append("")
+    findings("## 9. Detection gaps", pm.detection_gaps, "None validated.")
+
+    L += ["## 10. Lessons learned", ""]
     for area in ("people", "process", "technology", "governance"):
         items = [x for x in pm.lessons if x.area == area]
         if items:
@@ -268,7 +315,7 @@ def render_markdown(pm: Postmortem) -> str:
     if not pm.lessons:
         L += ["_None validated._", ""]
 
-    L += ["## 9. Corrective actions", ""]
+    L += ["## 11. Corrective actions", ""]
     if pm.corrective_actions:
         L += ["| Priority | Action | Why | Policy | Owner | Timeframe | Expected benefit |",
               "|---|---|---|---|---|---|---|"]
@@ -281,14 +328,14 @@ def render_markdown(pm: Postmortem) -> str:
         L.append("_None validated._")
     L.append("")
 
-    L += ["## 10. Open questions and remaining risks", ""]
+    L += ["## 12. Open questions and remaining risks", ""]
     L += [f"- **Open:** {q}" for q in pm.open_questions]
     L += [f"- **Risk:** {r}" for r in pm.remaining_risks]
     if not (pm.open_questions or pm.remaining_risks):
         L.append("_None recorded._")
     L.append("")
 
-    L += ["## 11. Validation log", ""]
+    L += ["## 13. Validation log", ""]
     L += [f"- {x}" for x in pm.validation_log] or ["- No problems found."]
     L.append("")
 

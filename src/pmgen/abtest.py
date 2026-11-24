@@ -107,9 +107,47 @@ def attack_review(folder: Path) -> str:
     return "\n".join(lines)
 
 
+def impact_review(folder: Path) -> str:
+    """Phase 8: milestones, computed durations and impact scope per incident (files without _norag)."""
+    from .postmortem import fmt_duration
+
+    lines = ["# Root cause, impact and response review", "",
+             "| Incident | Milestones right | Wrong milestones | Detect | Respond | Contain | Dwell "
+             "| Systems R/P | Accounts R/P | Scope forbidden | Immediate cause |",
+             "|---|---|---|---|---|---|---|---|---|---|---|"]
+    acc, forbidden, n = [], 0, 0
+    for inc in list_incidents():
+        f = folder / f"{inc}_postmortem.json"
+        if not f.exists():
+            continue
+        n += 1
+        pm = Postmortem.model_validate_json(f.read_text(encoding="utf-8"))
+        s = score_report(load_ground_truth(inc), pm)
+        dur = {d.name: fmt_duration(d.seconds) + ("~" if d.approximate else "")
+               for d in (pm.response.durations if pm.response else [])}
+        if s.milestone_accuracy is not None:
+            acc.append(s.milestone_accuracy)
+        forbidden += len(s.scope_forbidden_hits)
+        ic = f"[{pm.immediate_cause.certainty.value}]" if pm.immediate_cause else "missing"
+        lines.append(
+            f"| {inc} | {_fmt(s.milestone_accuracy)} | {'; '.join(s.milestone_errors) or '-'} "
+            f"| {dur.get('time_to_detect', '-')} | {dur.get('time_to_respond', '-')} "
+            f"| {dur.get('time_to_contain', '-')} | {dur.get('dwell_time', '-')} "
+            f"| {_fmt(s.systems_recall)}/{_fmt(s.systems_precision)} "
+            f"| {_fmt(s.accounts_recall)}/{_fmt(s.accounts_precision)} "
+            f"| {_fmt(s.scope_forbidden_hits)} | {ic} |")
+    mean = f"{sum(acc) / len(acc):.0%}" if acc else "n/a"
+    lines += ["", f"**Reports:** {n}. **Mean milestone accuracy:** {mean}. **Scope forbidden hits:** {forbidden}.",
+              "", "`~` = approximate (an endpoint's date was inferred or its timezone assumed). "
+                  "R/P = recall/precision; n/a means nothing was expected or nothing was listed."]
+    return "\n".join(lines)
+
+
 if __name__ == "__main__":
     folder = Path(sys.argv[1] if len(sys.argv) > 1 else "reports")
-    if "--attack" in sys.argv:
+    if "--impact" in sys.argv:
+        text, out = impact_review(folder), folder / "impact_review.md"
+    elif "--attack" in sys.argv:
         text, out = attack_review(folder), folder / "attack_review.md"
     else:
         text, out = summary(load_scores(folder)), folder / "ab_summary.md"

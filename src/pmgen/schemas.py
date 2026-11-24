@@ -290,6 +290,18 @@ class GroundTruthAttack(BaseModel):
         return v
 
 
+class GroundTruthImpact(BaseModel):
+    systems: list[str] = Field(default_factory=list)
+    systems_acceptable: list[str] = Field(default_factory=list)
+    systems_forbidden: list[str] = Field(default_factory=list)
+    accounts: list[str] = Field(default_factory=list)
+    accounts_acceptable: list[str] = Field(default_factory=list)
+    accounts_forbidden: list[str] = Field(default_factory=list)
+
+
+MILESTONES = ("attack_start", "first_detection", "response_start", "containment")
+
+
 class GroundTruth(BaseModel):
     incident_id: str = Field(pattern=r"^INC-\d{4}-\d{3}$")
     title: str
@@ -300,6 +312,9 @@ class GroundTruth(BaseModel):
     timeline: list[GroundTruthEvent] = Field(min_length=3)
     iocs: dict[EntityType, list[str]]
     attack: list[GroundTruthAttack]
+    response_milestones: dict[str, list[EvidenceRef]] = Field(
+        default_factory=dict, description="Acceptable source records for each response milestone (MILESTONES)")
+    impact: GroundTruthImpact | None = None
     attack_acceptable: list[str] = Field(
         default_factory=list, description="Defensible extra technique IDs: not required, not penalised.")
     attack_forbidden: list[str] = Field(
@@ -374,6 +389,23 @@ class DraftAttack(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
 
 
+class DraftMilestones(BaseModel):
+    attack_start: str | None = Field(default=None, description="Timeline event ID of the first attacker/insider action, or null")
+    first_detection: str | None = Field(default=None, description="Event ID of the first alert or report of the incident, or null")
+    response_start: str | None = Field(default=None, description="Event ID when a responder started working on it, or null")
+    containment: str | None = Field(default=None, description="Event ID of the first containment action, or null")
+
+
+class DraftImpact(BaseModel):
+    systems_involved: list[str] = Field(default_factory=list,
+        description="Hosts, applications or cloud resources the attacker/insider used, compromised, or that held affected data; names exactly as in the evidence")
+    accounts_involved: list[str] = Field(default_factory=list,
+        description="Accounts the attacker/insider used or compromised; exactly as in the evidence; not responder accounts")
+    data_affected: DraftFinding | None = None
+    operational_impact: DraftFinding | None = None
+    business_impact: DraftFinding | None = None
+
+
 class DraftReport(BaseModel):
     title: str
     category: IncidentCategory
@@ -385,8 +417,11 @@ class DraftReport(BaseModel):
     key_event_ids: list[str] = Field(default_factory=list, description="Timeline event IDs (EV001...) that matter most")
     indicators: list[str] = Field(default_factory=list, description="Malicious indicators, copied exactly from the observables list")
     attack: list[DraftAttack] = Field(default_factory=list, description="MITRE ATT&CK techniques the evidence shows")
+    immediate_cause: DraftFinding | None = Field(default=None, description="What directly triggered the incident")
     root_cause: DraftFinding
     contributing_factors: list[DraftFinding] = Field(default_factory=list)
+    impact: DraftImpact = Field(default_factory=DraftImpact)
+    milestones: DraftMilestones = Field(default_factory=DraftMilestones)
     detection_gaps: list[DraftFinding] = Field(default_factory=list)
     lessons: list[DraftLesson] = Field(default_factory=list)
     corrective_actions: list[DraftAction] = Field(default_factory=list)
@@ -412,6 +447,34 @@ class Indicator(BaseModel):
     first_seen: EvidenceRef
 
 
+class Impact(BaseModel):
+    systems_involved: list[str] = Field(default_factory=list)
+    accounts_involved: list[str] = Field(default_factory=list)
+    data_affected: Finding | None = None
+    operational_impact: Finding | None = None
+    business_impact: Finding | None = None
+
+
+class MilestoneEvent(BaseModel):
+    event_id: str
+    timestamp: datetime
+    time_basis: TimeBasis
+    sources: list[EvidenceRef]
+
+
+class Duration(BaseModel):
+    name: str
+    start: str
+    end: str
+    seconds: int
+    approximate: bool  # an endpoint's time was inferred or its timezone assumed
+
+
+class ResponseMetrics(BaseModel):
+    milestones: dict[str, MilestoneEvent | None]
+    durations: list[Duration]
+
+
 class Postmortem(BaseModel):
     incident_id: str
     title: str
@@ -425,8 +488,11 @@ class Postmortem(BaseModel):
     indicators: list[Indicator]
     attack: list[AttackMapping] = Field(default_factory=list)
     attack_catalog: str = ""
+    immediate_cause: Finding | None = None
     root_cause: Finding | None
     contributing_factors: list[Finding]
+    impact: Impact = Field(default_factory=Impact)
+    response: ResponseMetrics | None = None
     detection_gaps: list[Finding]
     lessons: list[Lesson]
     corrective_actions: list[CorrectiveAction]

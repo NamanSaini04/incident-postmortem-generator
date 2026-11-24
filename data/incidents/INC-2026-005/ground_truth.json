@@ -153,5 +153,48 @@
   "attack_forbidden": [
     "T1078.004",
     "T1566"
-  ]
+  ],
+  "response_milestones": {
+    "attack_start": [
+      {
+        "file": "crm_audit.csv",
+        "locator": "row 2"
+      },
+      {
+        "file": "proxy_logs.csv",
+        "locator": "row 1"
+      }
+    ],
+    "first_detection": [
+      {
+        "file": "dlp_alerts.json",
+        "locator": "alerts[0]"
+      }
+    ],
+    "response_start": [
+      {
+        "file": "hr_ticket.txt",
+        "locator": "line 3"
+      }
+    ],
+    "containment": [
+      {
+        "file": "hr_ticket.txt",
+        "locator": "line 5"
+      }
+    ]
+  },
+  "impact": {
+    "systems": [],
+    "systems_acceptable": [
+      "LT-SALES-07",
+      "CRM"
+    ],
+    "systems_forbidden": [],
+    "accounts": [
+      "r.mehta"
+    ],
+    "accounts_acceptable": [],
+    "accounts_forbidden": []
+  }
 }

@@ -208,5 +208,58 @@
   "attack_forbidden": [
     "T1213",
     "T1110"
-  ]
+  ],
+  "response_milestones": {
+    "attack_start": [
+      {
+        "file": "email_gateway.csv",
+        "locator": "row 1"
+      },
+      {
+        "file": "auth_logs.csv",
+        "locator": "row 2"
+      }
+    ],
+    "first_detection": [
+      {
+        "file": "siem_alerts.json",
+        "locator": "alerts[0]"
+      }
+    ],
+    "response_start": [
+      {
+        "file": "analyst_notes.txt",
+        "locator": "line 3"
+      }
+    ],
+    "containment": [
+      {
+        "file": "analyst_notes.txt",
+        "locator": "line 4"
+      },
+      {
+        "file": "analyst_notes.txt",
+        "locator": "line 5"
+      }
+    ]
+  },
+  "impact": {
+    "systems": [
+      "Exchange Online"
+    ],
+    "systems_acceptable": [
+      "LT-OPS-114",
+      "OfficeHome"
+    ],
+    "systems_forbidden": [
+      "SharePoint"
+    ],
+    "accounts": [
+      "j.patel"
+    ],
+    "accounts_acceptable": [],
+    "accounts_forbidden": [
+      "a.khan"
+    ]
+  }
 }

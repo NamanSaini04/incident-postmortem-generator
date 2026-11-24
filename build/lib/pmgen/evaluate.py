@@ -143,7 +143,47 @@ class ReportScore(BaseModel):
     attack_precision: float | None       # mapped techniques that are required or acceptable (lenient); None if none
     attack_forbidden_hits: list[str]     # mapped techniques the answer key says the evidence does NOT support
     attack_removed: int                  # mappings dropped by the validator
+    milestone_accuracy: float | None     # milestones whose chosen event matches the answer key
+    milestone_errors: list[str]
+    systems_recall: float | None
+    systems_precision: float | None
+    accounts_recall: float | None
+    accounts_precision: float | None
+    scope_forbidden_hits: list[str]      # systems/accounts the answer key says were NOT involved
     must_not_claim: list[str]      # for MANUAL check: these must not appear as confirmed facts
+
+
+def _response_scores(gt: GroundTruth, pm) -> dict:
+    from .schemas import MILESTONES
+    if not gt.response_milestones:
+        return {"milestone_accuracy": None, "milestone_errors": []}
+    resp = getattr(pm, "response", None)
+    ok, errors = 0, []
+    for name in MILESTONES:
+        acceptable = {(r.file, r.locator) for r in gt.response_milestones.get(name, [])}
+        m = resp.milestones.get(name) if resp else None
+        chosen = {(s.file, s.locator) for s in m.sources} if m else set()
+        if (not acceptable and not chosen) or (chosen & acceptable):
+            ok += 1
+        else:
+            errors.append(f"{name}: chose {m.event_id if m else 'none'}")
+    return {"milestone_accuracy": ok / len(MILESTONES), "milestone_errors": errors}
+
+
+def _scope_scores(gt: GroundTruth, pm) -> dict:
+    keys = ("systems_recall", "systems_precision", "accounts_recall", "accounts_precision")
+    if gt.impact is None:
+        return {**{k: None for k in keys}, "scope_forbidden_hits": []}
+    norm = lambda xs: {x.strip().lower() for x in xs}  # noqa: E731
+    out, forbidden = {}, []
+    for kind, got in (("systems", pm.impact.systems_involved), ("accounts", pm.impact.accounts_involved)):
+        req = norm(getattr(gt.impact, kind))
+        ok = req | norm(getattr(gt.impact, f"{kind}_acceptable"))
+        g = norm(got)
+        out[f"{kind}_recall"] = len(g & req) / len(req) if req else None
+        out[f"{kind}_precision"] = len(g & ok) / len(g) if g else None
+        forbidden += sorted(g & norm(getattr(gt.impact, f"{kind}_forbidden")))
+    return {**out, "scope_forbidden_hits": forbidden}
 
 
 def _attack_scores(gt: GroundTruth, pm) -> dict:
@@ -200,5 +240,7 @@ def score_report(gt: GroundTruth, pm) -> ReportScore:
         actions_with_policy=(sum(bool(a.policy_refs) for a in pm.corrective_actions) / len(pm.corrective_actions)
                              if pm.corrective_actions else None),
         **_attack_scores(gt, pm),
+        **_response_scores(gt, pm),
+        **_scope_scores(gt, pm),
         must_not_claim=gt.must_not_claim,
     )

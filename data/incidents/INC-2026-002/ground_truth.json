@@ -209,5 +209,47 @@
     "T1041",
     "T1567",
     "T1486"
-  ]
+  ],
+  "response_milestones": {
+    "attack_start": [
+      {
+        "file": "edr_events.json",
+        "locator": "events[0]"
+      }
+    ],
+    "first_detection": [
+      {
+        "file": "edr_events.json",
+        "locator": "events[1]"
+      }
+    ],
+    "response_start": [
+      {
+        "file": "ticket.txt",
+        "locator": "line 3"
+      }
+    ],
+    "containment": [
+      {
+        "file": "edr_events.json",
+        "locator": "events[5]"
+      },
+      {
+        "file": "ticket.txt",
+        "locator": "line 4"
+      }
+    ]
+  },
+  "impact": {
+    "systems": [
+      "WS-FIN-022"
+    ],
+    "systems_acceptable": [],
+    "systems_forbidden": [],
+    "accounts": [
+      "m.okafor"
+    ],
+    "accounts_acceptable": [],
+    "accounts_forbidden": []
+  }
 }

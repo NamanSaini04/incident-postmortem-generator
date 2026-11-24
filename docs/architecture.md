@@ -209,6 +209,26 @@ fake LLM so far; real-model results come from running it.
 - **Scoring:** strict recall, lenient recall (parent/sub-technique), precision
   against required + acceptable techniques, and forbidden hits (traps).
 
+## Root cause, impact and response timing (Phase 8)
+
+- **Immediate cause vs root cause.** Immediate cause = what directly triggered the
+  incident; root cause = the weakness that let it succeed. Both are findings with
+  certainty and evidence.
+- **Impact.** `systems_involved` / `accounts_involved` must appear in the evidence
+  as whole tokens (so `j.pat` does not match `j.patel`); anything else is dropped
+  and logged. Data, operational and business impact are findings; "unknown" with
+  no citation is allowed (the evidence rarely states cost).
+- **The LLM never does time arithmetic.** It picks four timeline event IDs
+  (attack start, first detection, response start, containment) or null. Code checks
+  they exist and are in time order, then computes time to detect / respond /
+  contain and dwell time. A duration is marked approximate if either endpoint's
+  date was inferred or its timezone assumed. Bad milestones drop the timing
+  section only, not the report.
+- **Known limits.** No resolution/recovery time: the evidence does not date it.
+  Milestones are judgment calls; the answer key accepts several events where
+  analysts could reasonably disagree (e.g. INC-003 attack start = the misconfig or
+  the first outside read, 3 days apart, which changes time to detect a lot).
+
 ## Safety rules enforced in code (not just in prompts)
 
 - A `confirmed` timeline event must cite evidence and have a timestamp.

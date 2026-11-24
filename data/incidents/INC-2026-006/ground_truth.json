@@ -227,5 +227,47 @@
   "attack_forbidden": [
     "T1530",
     "T1537"
-  ]
+  ],
+  "response_milestones": {
+    "attack_start": [
+      {
+        "file": "cloudtrail.json",
+        "locator": "Records[1]"
+      }
+    ],
+    "first_detection": [
+      {
+        "file": "cloud_alerts.csv",
+        "locator": "row 1"
+      }
+    ],
+    "response_start": [
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 3"
+      }
+    ],
+    "containment": [
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 4"
+      },
+      {
+        "file": "cloudtrail.json",
+        "locator": "Records[6]"
+      }
+    ]
+  },
+  "impact": {
+    "systems": [],
+    "systems_acceptable": [],
+    "systems_forbidden": [],
+    "accounts": [
+      "c.ng"
+    ],
+    "accounts_acceptable": [
+      "svc.reporting"
+    ],
+    "accounts_forbidden": []
+  }
 }

@@ -29,6 +29,12 @@ from .attack import load_catalog as attack_catalog
 from .attack import lookup as attack_lookup
 from .extract import find_indicators
 from .schemas import (
+    MILESTONES,
+    Duration,
+    Impact,
+    MilestoneEvent,
+    ResponseMetrics,
+    TimeBasis,
     AttackMapping,
     Certainty,
     Citation,
@@ -45,11 +51,64 @@ from .schemas import (
 LESSON_AREAS = {"people", "process", "technology", "governance"}
 RECORD_ID = re.compile(r"\bR\d{3,}\b")
 KB_ID = re.compile(r"\bK\d{2,}\b")
-FINDING_REF = re.compile(r"^(what_happened|contributing_factors|detection_gaps)\[(\d+)\]$|^root_cause$")
+FINDING_REF = re.compile(r"^(what_happened|contributing_factors|detection_gaps)\[(\d+)\]$|^root_cause$|^immediate_cause$"
+                         r"|^impact\.(data_affected|operational_impact|business_impact)$")
 HEDGE = re.compile(r"\b(likely|probabl[ey]|may|might|possibl[ey]|appears?|suggests?|unconfirmed|not confirmed|"
                    r"unknown|unclear|inferred|believed|consistent with|not (yet )?(established|determined|known)|"
                    r"cannot be ruled out|not ruled out)\b", re.IGNORECASE)
 _RANK = {Certainty.CONFIRMED: 3, Certainty.PROBABLE: 2, Certainty.POSSIBLE: 1, Certainty.UNKNOWN: 0}
+
+
+IMPACT_FINDINGS = ("data_affected", "operational_impact", "business_impact")
+
+
+def _corpus(pack: EvidencePack) -> str:
+    return "\n".join(r.text for r in pack.records.values()).lower()
+
+
+def _in_corpus(name: str, corpus: str) -> bool:
+    n = name.strip().lower()
+    return len(n) >= 2 and re.search(rf"(?<![\w.-]){re.escape(n)}(?![\w-])", corpus) is not None
+
+
+def check_milestones(ms, pack: EvidencePack) -> list[str]:
+    """Milestones must be real timeline events and in time order. Durations are computed by code."""
+    events = {e.event_id: e for e in pack.timeline.events}
+    problems, chosen = [], []
+    for name in MILESTONES:
+        eid = getattr(ms, name)
+        if eid is None:
+            continue
+        if eid not in events:
+            problems.append(f"{name}: {eid} is not a timeline event")
+            continue
+        chosen.append((name, events[eid]))
+    for (n1, e1), (n2, e2) in zip(chosen, chosen[1:]):
+        if e2.timestamp < e1.timestamp:
+            problems.append(f"{n2} ({e2.event_id}, {e2.timestamp:%H:%M:%S}) is before {n1} ({e1.event_id}, "
+                            f"{e1.timestamp:%H:%M:%S}); milestones must be in time order")
+    return problems
+
+
+def compute_response(ms, pack: EvidencePack) -> ResponseMetrics:
+    events = {e.event_id: e for e in pack.timeline.events}
+    got: dict[str, MilestoneEvent | None] = {}
+    for name in MILESTONES:
+        e = events.get(getattr(ms, name) or "")
+        got[name] = MilestoneEvent(event_id=e.event_id, timestamp=e.timestamp, time_basis=e.time_basis,
+                                   sources=e.sources) if e else None
+    pairs = [("time_to_detect", "attack_start", "first_detection"),
+             ("time_to_respond", "first_detection", "response_start"),
+             ("time_to_contain", "first_detection", "containment"),
+             ("dwell_time", "attack_start", "containment")]
+    durations = []
+    for label, a, b in pairs:
+        if got[a] and got[b]:
+            durations.append(Duration(
+                name=label, start=a, end=b,
+                seconds=int((got[b].timestamp - got[a].timestamp).total_seconds()),
+                approximate=any(got[x].time_basis is not TimeBasis.EXACT for x in (a, b))))
+    return ResponseMetrics(milestones=got, durations=durations)
 
 
 def resolve_finding(d: DraftReport, ref: str):
@@ -58,6 +117,10 @@ def resolve_finding(d: DraftReport, ref: str):
         return None
     if ref.strip() == "root_cause":
         return d.root_cause
+    if ref.strip() == "immediate_cause":
+        return d.immediate_cause
+    if ref.strip().startswith("impact."):
+        return getattr(d.impact, ref.strip().split(".", 1)[1])
     items = getattr(d, m.group(1))
     i = int(m.group(2))
     return items[i] if i < len(items) else None
@@ -130,6 +193,12 @@ def _free_text(d: DraftReport) -> list[tuple[str, str]]:
     for i, a in enumerate(d.corrective_actions):
         out += [(f"corrective_actions[{i}]", f"{a.recommendation} {a.reason} {a.expected_benefit}")]
     out += [(f"attack[{i}]", a.rationale) for i, a in enumerate(d.attack)]
+    if d.immediate_cause:
+        out.append(("immediate_cause", d.immediate_cause.statement))
+    for k in IMPACT_FINDINGS:
+        f = getattr(d.impact, k)
+        if f:
+            out.append((f"impact.{k}", f.statement))
     out += [(f"open_questions[{i}]", q) for i, q in enumerate(d.open_questions)]
     out += [(f"remaining_risks[{i}]", r) for i, r in enumerate(d.remaining_risks)]
     return out
@@ -159,6 +228,17 @@ def validate_draft(d: DraftReport, pack: EvidencePack) -> list[Issue]:
         finding(f"contributing_factors[{i}]", f)
     for i, f in enumerate(d.detection_gaps):
         finding(f"detection_gaps[{i}]", f)
+    if d.immediate_cause:
+        finding("immediate_cause", d.immediate_cause)
+    for k in IMPACT_FINDINGS:
+        if getattr(d.impact, k):
+            finding(f"impact.{k}", getattr(d.impact, k))
+    corpus = _corpus(pack)
+    for kind in ("systems_involved", "accounts_involved"):
+        for name in getattr(d.impact, kind):
+            if not _in_corpus(name, corpus):
+                issues.append(Issue(where=f"impact.{kind}", problem=f"{name!r} does not appear in the evidence"))
+    issues += [Issue(where="milestones", problem=p) for p in check_milestones(d.milestones, pack)]
     for i, p in enumerate(d.summary_points):
         err = check_summary_point(d, p)
         if err:
@@ -346,6 +426,26 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
     what = findings(d.what_happened, "what_happened")
     cfs = findings(d.contributing_factors, "contributing_factors")
     gaps = findings(d.detection_gaps, "detection_gaps")
+    immediate = to_finding(d.immediate_cause, "immediate_cause") if d.immediate_cause else None
+    corpus = _corpus(pack)
+    impact_kwargs = {}
+    for kind in ("systems_involved", "accounts_involved"):
+        kept = []
+        for name in dict.fromkeys(x.strip() for x in getattr(d.impact, kind)):
+            if _in_corpus(name, corpus):
+                kept.append(name)
+            else:
+                log.append(f"impact.{kind}: DROPPED {name!r}, not in the evidence")
+        impact_kwargs[kind] = kept
+    for k in IMPACT_FINDINGS:
+        f = getattr(d.impact, k)
+        impact_kwargs[k] = to_finding(f, f"impact.{k}") if f else None
+    ms_problems = check_milestones(d.milestones, pack)
+    if ms_problems:
+        log.append("milestones: DROPPED, response timing not computed: " + "; ".join(ms_problems))
+        response = None
+    else:
+        response = compute_response(d.milestones, pack)
     summary = []
     for i, p in enumerate(d.summary_points):
         where = f"summary_points[{i}]"
@@ -373,6 +473,9 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
         root_cause=rc,
         contributing_factors=cfs,
         detection_gaps=gaps,
+        immediate_cause=immediate,
+        impact=Impact(**impact_kwargs),
+        response=response,
         lessons=lessons, corrective_actions=actions,
         open_questions=[clean(q, "open_questions") for q in d.open_questions],
         remaining_risks=[clean(r, "remaining_risks") for r in d.remaining_risks],

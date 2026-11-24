@@ -225,5 +225,48 @@
     "T1048",
     "T1567",
     "T1003"
-  ]
+  ],
+  "response_milestones": {
+    "attack_start": [
+      {
+        "file": "firewall.csv",
+        "locator": "row 1"
+      },
+      {
+        "file": "windows_security.json",
+        "locator": "events[0]"
+      }
+    ],
+    "first_detection": [
+      {
+        "file": "edr_alerts.csv",
+        "locator": "row 1"
+      }
+    ],
+    "response_start": [
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 3"
+      }
+    ],
+    "containment": [
+      {
+        "file": "ir_notes.txt",
+        "locator": "line 4"
+      }
+    ]
+  },
+  "impact": {
+    "systems": [
+      "FS-02",
+      "JMP-01"
+    ],
+    "systems_acceptable": [],
+    "systems_forbidden": [],
+    "accounts": [
+      "svc.backup"
+    ],
+    "accounts_acceptable": [],
+    "accounts_forbidden": []
+  }
 }
