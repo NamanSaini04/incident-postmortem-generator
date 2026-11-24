@@ -403,3 +403,31 @@ is in the EDR file header, not in each event) and 1 minor citation gap (INC-001
 cited a.khan's email row for a claim about j.patel). It would not have caught the
 INC-006 pattern at all. Not worth adding.
 
+## Phase 9: validation (2026-11-24)
+
+**Two claim-level checks tested offline on 30 saved reports, both rejected:**
+
+| Check | Claims checked | Flagged | True problems found |
+|---|---|---|---|
+| Confirmed claim names an account/host/IP not in its cited records | 294 | 4 | 1 minor citation gap |
+| Number in a claim not in its cited records | 419 | 56 | 0 in a manual spot check |
+
+- The number check flags correct text: dates reformatted ("14 Sep" vs
+  2026-09-14), units ("24 hours" vs "24h") and gaps the model computed itself
+  ("about 45 minutes later").
+- That exposed a gap in an earlier claim: "the LLM never does time arithmetic" is
+  true only for the Response analysis table. Every prose duration spot-checked was
+  correct (e.g. 01:13 to 01:58 = 45 min; 23:34:10 to 23:36:40 = 2.5 min), but none
+  are verified by code.
+
+**Built instead:** `pmgen.verify`, an independent re-check of saved reports
+(8 checks, 16 tests, each check mutation-tested: disabling it fails a test).
+
+**Pre-registered prediction for the 6 Phase 8 JSON reports:** all pass with 0
+failures. Any failure means a bug in the validator or the verifier, not the model,
+because these checks repeat what the validator already enforced.
+
+**Phase 9 result (run 2026-11-24):** prediction held. 6/6 Phase 8 reports pass,
+718 items checked, 0 failures, 0 claims removed during generation. This confirms
+the saved reports are consistent with their evidence; it is not new evidence of
+report quality (that is the Phase 8 scoring and trap checks).

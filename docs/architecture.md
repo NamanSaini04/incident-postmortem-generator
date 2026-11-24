@@ -229,6 +229,25 @@ fake LLM so far; real-model results come from running it.
   analysts could reasonably disagree (e.g. INC-003 attack start = the misconfig or
   the first outside read, 3 days apart, which changes time to detect a lot).
 
+## Validation (Phase 9): two layers
+
+1. **While generating** (`validate.py`): checks the LLM draft, sends problems back
+   once, then drops or downgrades what still fails and logs it.
+2. **After saving** (`verify.py`): an independent check of the finished report
+   against the original evidence files, so a reader does not have to trust that
+   layer 1 ran or that the report was not edited. Checks: file SHA-256 hashes,
+   citations and quotes, policy quotes, IOCs in their cited record, ATT&CK IDs
+   current, milestone order and recomputed durations, impact names in evidence,
+   confirmed/probable findings have evidence.
+
+**What neither layer can check:** whether a correctly quoted record supports the
+claim's meaning. Two code checks for this were tested offline on saved reports
+and rejected (see results.md): too many false alarms, no true catches.
+
+**Known gap:** the code computes durations only in the Response analysis table.
+In prose the model still writes gaps itself ("about 45 minutes later"). All that
+were spot-checked were right, but they are not verified.
+
 ## Safety rules enforced in code (not just in prompts)
 
 - A `confirmed` timeline event must cite evidence and have a timestamp.

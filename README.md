@@ -16,7 +16,7 @@ No LLM yet. Evaluated on synthetic data only; not validated on production data.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install ".[dev,llm]"   # re-run after pulling new code (see note below)
-pytest -q          # expect: 286 passed
+pytest -q          # expect: 302 passed
 python -m pmgen.ingest data/incidents/INC-2026-001   # ingestion summary
 python -m pmgen.extract data/incidents/INC-2026-001  # extracted observables
 python -m pmgen.timeline data/incidents/INC-2026-001 # reconstructed timeline
@@ -46,6 +46,19 @@ check by hand (the hallucination traps).
 **macOS note:** if `pip install -e` succeeds but `import pmgen` fails, macOS
 may have marked the install's `.pth` file as hidden, and newer Python skips
 hidden `.pth` files. A normal install (`pip install ".[dev]"`) avoids this.
+
+## Verifying a saved report (no API key needed)
+
+```bash
+python -m pmgen.verify reports/phase8/          # every *_postmortem*.json in the folder
+```
+
+Re-reads the original evidence files and re-checks the finished report from
+scratch: file hashes, every citation and quote, policy quotes, IOCs, ATT&CK IDs,
+recomputed durations, impact names, and that confirmed/probable findings have
+evidence. Exit code 1 if anything fails. It checks that claims are *grounded*,
+not that they are *true*: a real quote can still be misread. That stays with a
+human reviewer.
 
 ## Layout
 
