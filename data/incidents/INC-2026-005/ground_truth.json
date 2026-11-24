@@ -188,7 +188,8 @@
     "systems": [],
     "systems_acceptable": [
       "LT-SALES-07",
-      "CRM"
+      "CRM",
+      "upload.personal-cloud.test"
     ],
     "systems_forbidden": [],
     "accounts": [

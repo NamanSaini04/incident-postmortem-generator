@@ -324,3 +324,82 @@ Predictions (to be checked, not tuned against):
 
 Pass bar: mean milestone accuracy >= 75%, 0 scope forbidden hits, traps still all
 avoided. Cost: 6 runs, about $0.60.
+
+## Phase 8 results (run 2026-11-24, 6 incidents, 1 run each, with RAG)
+
+| Incident | Milestones | Detect | Respond | Contain | Systems R/P | Accounts R/P | Forbidden |
+|---|---|---|---|---|---|---|---|
+| INC-001 | 4/4 | 9m 58s | 28m~ | 34m~ | 100/100 | 100/100 | 0 |
+| INC-002 | 4/4 | 22s | 2h 27m~ | 2h 34m~ | 100/100 | 100/100 | 0 |
+| INC-003 | 4/4 | 3d 18h 27m~ | 25m~ | 25m~ | 100/100 | n/a/100 | 0 |
+| INC-004 | 4/4 | 51m 58s | 18m 55s~ | 24m 55s~ | 100/100 | 100/100 | 0 |
+| INC-005 | 4/4 | 19m 22s | 16h 53m~ | 22h 18m~ | n/a/**50** | 100/100 | 0 |
+| INC-006 | 4/4 | 50s | 44m 30s~ | 49m 30s~ | n/a | 100/100 | 0 |
+
+`~` = approximate (inferred date or assumed timezone). Durations computed by code.
+
+- **Pass bar met:** milestone accuracy 100% (bar 75%), 0 scope forbidden hits.
+- **Traps:** 24/24 avoided, checked by hand against each report (116/116 across all runs).
+- **Validation:** 5 of 6 passed first try. INC-005 needed one retry: a summary
+  point stated a probable finding as fact; the hedge check caught it and the retry fixed it.
+
+**Why 100% milestone accuracy is weak evidence**
+- I wrote the data and the answer key. The notes say "picked up" / "isolated" in
+  plain words, so choosing the events is easy. Real notes are messier.
+- Several milestones accept 2-3 events.
+- One run each: no evidence about stability yet.
+
+**Prediction check**
+- Wrong: I predicted `response_start` would be the main error. It was 6/6 right.
+- Wrong: I predicted INC-005 time to detect could be 0s. The model chose the CRM
+  export (16:02) as attack start, which is the better choice (19m 22s).
+- Right: INC-003 durations marked approximate; 0 forbidden hits.
+- Partly right: one extra system lowered precision (INC-005), but it was my error (below).
+- Judgement call: INC-003 attack start = the misconfiguration (14 Sep), not the
+  first outside read (17 Sep). So "3d 18h to detect" means time from exposure, not
+  from attacker activity. Both are accepted by the key.
+
+**Answer-key correction (made after the run, disclosed)**
+- INC-005: the model listed `upload.personal-cloud.test` as a system involved. My
+  prompt defines systems as anything "the insider used" or "that held affected
+  data", which this site meets. The key left it out. It is now in
+  `systems_acceptable`. Pre-registered score: precision 50%; corrected: 100%.
+
+**Pattern the numbers show (by design of the synthetic data, not a discovery)**
+- Detection is fast; pickup is slow. INC-002: alert in 22s, picked up after 2h 27m.
+  INC-005: 19m to the DLP alert, 16h 53m to review. This shows the tool measures the
+  delay correctly, not that real SOCs behave this way.
+
+**Quality notes from reading the reports**
+- INC-004 now maps T1133 (External Remote Services), the Phase 7 miss, but still
+  also maps internet RDP as T1021.001 (lateral movement): tactic confusion remains.
+- INC-006 "certainty drift": see the correction below; it was my misdiagnosis.
+- INC-006 under-claims once: "leaked key found only during the response" is
+  labelled probable, but the notes state it.
+- INC-005 adds a useful, grounded lesson: the interview came before device
+  collection, against the insider playbook.
+- Cost: about $0.12-0.13 per run (longer output; INC-006 ~10.6k output tokens).
+
+## Correction: the INC-006 "certainty drift" was my misdiagnosis (2026-11-24)
+
+Checked all 5 saved INC-006 reports side by side (Phase 6-8, with and without RAG).
+
+- Every report that labels the `iam:*` claim **confirmed** states only what
+  ir_notes.txt line 7 says: the contractors-group policy grants `iam:*`, so any
+  member could attach AdministratorAccess. That is a correct label.
+- Every report that adds the link "c.ng is in that group" labels it **probable**
+  and says the membership is not stated. Also correct.
+- So the runs differ in *which claim they make*, not in certainty for the same
+  claim. Earlier write-ups (Phase 6/7) called this the most consistent weakness;
+  that was wrong. The answer key's single "probable" root cause bundles the leaked
+  key (inferred) with the `iam:*` policy (stated), so it penalised a correct split.
+- Remaining, smaller issue: the reports leave the c.ng-to-group link implicit
+  instead of listing it as an open question (one report did).
+
+**Proposed fix tested offline and rejected.** A code check that a confirmed claim
+naming an account/host/IP must cite a record mentioning it was run over 30 saved
+reports (294 confirmed claims). It fired 4 times: 3 false positives (the host name
+is in the EDR file header, not in each event) and 1 minor citation gap (INC-001
+cited a.khan's email row for a claim about j.patel). It would not have caught the
+INC-006 pattern at all. Not worth adding.
+
