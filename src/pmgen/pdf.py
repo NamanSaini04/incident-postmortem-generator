@@ -128,7 +128,8 @@ def timeline_drawing(pm: Postmortem, width: float = CONTENT_W) -> Drawing | None
         for name, m in pm.response.milestones.items():
             if m:
                 marks.setdefault(m.event_id, []).append(letters[name])
-    for e in events:
+    last_label: dict[str, tuple[float, float]] = {}  # row -> (x, y) of the previous milestone label
+    for e in sorted(events, key=lambda ev: ev.timestamp):
         f = e.sources[0].file if e.sources else "?"
         cx, cy = x(e.timestamp), y(f)
         col = BLUE if e.time_basis is TimeBasis.EXACT else AMBER
@@ -138,7 +139,12 @@ def timeline_drawing(pm: Postmortem, width: float = CONTENT_W) -> Drawing | None
         else:
             d.add(Circle(cx, cy, 2.6, fillColor=col, strokeColor=col))
         if e.event_id in marks:
-            d.add(String(cx, cy + 6, " ".join(marks[e.event_id]), fontName="Helvetica-Bold", fontSize=7,
+            ly = cy + 6
+            prev = last_label.get(f)
+            if prev and cx - prev[0] < 12 and prev[1] == ly:  # too close to the previous label: lift this one
+                ly += 8
+            last_label[f] = (cx, ly)
+            d.add(String(cx, ly, " ".join(marks[e.event_id]), fontName="Helvetica-Bold", fontSize=7,
                          fillColor=NAVY, textAnchor="middle"))
     base = 36
     d.add(Line(left, base, width - right, base, strokeColor=GREY, strokeWidth=0.5))

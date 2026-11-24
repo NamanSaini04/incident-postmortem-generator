@@ -97,3 +97,14 @@ def test_chart_axis_shows_date_when_events_cross_midnight(report):
     assert any(first in t for t in labels), labels                     # dates on the axis
     same_day = [s.text for s in timeline_drawing(report).contents if isinstance(s, String)]
     assert not any(first in t for t in same_day)                       # same-day stays short
+
+
+def test_close_milestone_labels_do_not_overlap(report):
+    from datetime import timedelta
+    from reportlab.graphics.shapes import String
+    pm = report.model_copy(deep=True)
+    # stretch the axis so response start and containment (6 minutes apart) land a few points apart
+    pm.timeline.events[-1].timestamp = pm.timeline.events[0].timestamp + timedelta(hours=11)
+    labels = [s for s in timeline_drawing(pm).contents if isinstance(s, String) and s.text in ("R", "C")]
+    (r,), (c,) = [x for x in labels if x.text == "R"], [x for x in labels if x.text == "C"]
+    assert abs(r.x - c.x) < 12 and r.y != c.y
