@@ -442,3 +442,43 @@ No model run needed: the PDF is built from saved reports.
   release: invisible table headers (dark text on navy), a chart legend running off
   the page, a table split leaving one orphan row, and a section heading left at
   the bottom of a page away from its table.
+
+## Phase 12: evaluation suite (2026-11-24)
+
+**Bug found while building it:** the validator dropped invented indicators
+without logging a DROPPED line, so "claims removed" undercounted them in every
+earlier phase. Phase 8's count (0) is unaffected: all its reports had 0 unresolved
+problems. Fixed; old logs are counted from their final problem lines.
+
+**Pre-registered before running on the Phase 7 + Phase 8 runs:**
+- Citation correctness 100% (the verifier passed every Phase 8 report).
+- Completeness lower for Phase 7 than Phase 8 (no impact or response timing then), by design.
+- Severity: same in both runs for at least 5 of 6 incidents.
+- Unsupported claim rate under 5%.
+- Recommendation relevance (proxy) above 80%: most actions should cite a record behind a finding.
+
+**Phase 12 result (3 runs: Phase 6 `reports`, Phase 7, Phase 8; 18 reports; $0):**
+
+| Prediction | Result | Held? |
+|---|---|---|
+| Citation correctness 100% | 1401/1401 confirmed | yes |
+| Phase 7 completeness below Phase 8 | lower: Phase 7 had no impact or timing stage | yes (by design) |
+| Same severity in 5+ of 6 incidents | 6/6 across all 3 runs; category 18/18 | yes |
+| Unsupported claim rate under 5% | 0 removed from 602 final claims | yes, but see below |
+| Recommendation relevance above 80% | 80% | **no**: at the bar, not above |
+
+**Flaw in my first version of the evaluation, found from its own output:**
+the Phase 6 run predates ATT&CK mapping, so it scored 0% on a stage it never
+had, dragging mean ATT&CK recall down to 63%. Milestones showed 0% for runs before
+Phase 8 in the same way. Fixed: a stage a report's version did not have is n/a,
+left out of the means and out of completeness. Current figures: `docs/evaluation.md`.
+
+**Other findings:**
+- "0 claims removed" overstates quality: problems were found in some first drafts
+  and fixed on the retry. The evaluation now reports first-draft problems too.
+- Same root-cause *record* in only 1/6 incidents across runs, yet 18/18 cite the
+  answer key's record. Runs cite different supporting lines for the same cause.
+- INC-003 (Phase 8) lists no IOCs, so the checklist marks it incomplete. The model
+  held back the one IP because the notes say it may be the researcher who reported
+  the issue. That is arguably correct, and it exposes tension in my answer key
+  (that IP is listed as an IOC while "it is malicious" is a must-not-claim).

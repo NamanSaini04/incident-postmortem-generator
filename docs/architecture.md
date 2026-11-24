@@ -274,6 +274,26 @@ were spot-checked were right, but they are not verified.
   cannot inject formatting.
 - Light layout on purpose: it is meant to be printed and read, unlike the dark dashboard.
 
+## Evaluation suite (Phase 12)
+
+`python -m pmgen.evalsuite RUN_FOLDER ...` computes the spec's 10 measures from
+saved reports (no API calls) and writes `docs/evaluation.md`. Each folder is one run.
+
+| Measure | Source | Kind |
+|---|---|---|
+| Extraction, timeline | code on 36 cases (6 incidents x 6 variants) | exact |
+| Classification, ATT&CK, root cause, milestones, scope | answer keys | exact |
+| Citation correctness | the independent verifier | exact |
+| Unsupported claim rate | validation logs: removed / all claims | only what the validator caught |
+| Severity consistency | same answer across runs (values, not correctness) | needs 2+ runs |
+| Recommendation relevance | action cites a record behind a finding | **proxy** |
+| Completeness | 13-item section checklist | exact |
+
+Hallucination traps stay a manual check (a statement can cite a real record and
+still misread it). Found while building this: a dropped indicator was never logged
+as DROPPED, so "claims removed" undercounted it in earlier phases. Fixed in the
+validator; older logs are counted from their final unresolved problem lines.
+
 ## Safety rules enforced in code (not just in prompts)
 
 - A `confirmed` timeline event must cite evidence and have a timestamp.

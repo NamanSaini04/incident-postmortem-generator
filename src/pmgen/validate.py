@@ -397,6 +397,8 @@ def build_postmortem(d: DraftReport, pack: EvidencePack, model: str, issues: lis
             indicators.append(Indicator(value=e.value, entity_type=e.entity_type,
                                         first_seen=EvidenceRef(file=e.source.file, locator=e.source.locator,
                                                                excerpt=e.source.excerpt)))
+        else:  # logged so that "claims removed" counts it (it was silently skipped before Phase 12)
+            log.append(f"indicators: DROPPED {defang(v)!r}, not extracted from the evidence")
     event_ids = {e.event_id for e in pack.timeline.events}
 
     attack: list[AttackMapping] = []
